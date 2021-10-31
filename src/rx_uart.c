@@ -9,6 +9,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 
 #include "../inc/rx_uart.h"
 #include "string.h"
+#include "qmpool.h"
 
 
 /*=====[Definition macros of private constants]==============================*/
@@ -119,12 +120,12 @@ void cleanBuffer( void ) {
  */
 void onRx( void *noUsado ) {
 	static uint8_t frame_active = 0;
-	void *ptr_msg; //TODO Definir el tipo de dato de la variable
+	char *ptr_msg; 
 	char character;
 	character = uartRxRead(UART_USB);
 	if (character == START_OF_MESSAGE) {
 		if(frame_active == 0) {
-			// ptr_msg = get
+			// ptr_msg = (char*) QMPool_get(); //TODO Crear pool
 		}
 		if (ptr_msg != NULL) {
 			buff_ind = 0;
