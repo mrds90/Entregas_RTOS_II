@@ -10,11 +10,25 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #include "../inc/rx_uart.h"
 #include "string.h"
 
+
+/*=====[Definition macros of private constants]==============================*/
+#define MAX_BUFF				200
+#define START_OF_MESSAGE 		'('
+#define END_OF_MESSAGE 			')'
+#define CHARACTER_SIZE_ID		4
+#define CHARACTER_SIZE_CMD		1
+#define CHARACTER_SIZE_CRC		2
+/*=====[ Definitions of private data types ]===================================*/
+
+
+typedef struct {
+	frame_state_t state;
+	uint8_t buffer[MAX_BUFF];
+	uint8_t index;
+} frame_t;
 /*=====[Definitions of private global variables]=============================*/
 static char RxBuff[MAX_BUFF] = {0};
 static uint8_t buff_ind = 0;
-static char startDelimiter = '>';
-static char endDelimiter = '<';
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 
@@ -24,8 +38,7 @@ static char endDelimiter = '<';
    	@brief Funcion para inicializar la UART y sus interrupciones.
 	@param UART por donde se recibiran los datos
  */
-void uart_Init( uartMap_t uart )
-{
+void uart_Init( uartMap_t uart ) {
    /* Inicializar la UART_USB junto con las interrupciones de Tx y Rx */
    uartConfig(uart, 115200);
    // Seteo un callback al evento de recepcion y habilito su interrupcion
@@ -35,24 +48,11 @@ void uart_Init( uartMap_t uart )
 }
 
 /**
-   	@brief Funcion para inicializar los parametros para la deteccion de los paquetes.
-	@param Caracter que determina el comienzo del paquete
-	@param Caracter que determina el fin del paquete
- */
-void checkPckgInit( char sDelimiter, char eDelimiter )
-{
-	startDelimiter = sDelimiter;
-	endDelimiter = eDelimiter;
-	cleanBuffer();
-}
-
-/**
    	@brief 	Detecta cuando hay un paquete valido en el buffer de recepcion y devuelve su longitud y contenido.
 	@param 	Array en donde se almacenara el paquete
 	@return La longitud del paquete de datos ingresado
  */
-uint8_t checkPckg( char* pckg )
-{
+uint8_t checkPckg( char* pckg ) {
 	char* startPointer;
 	char* endPointer;
 	uint8_t startPos, endPos, pckgLen = 0;
@@ -77,13 +77,31 @@ uint8_t checkPckg( char* pckg )
 
 	return pckgLen;
 }
+void FrameCreator(frame_t *frame) {
 
+	// queueRecived 
+	switch (frame->state) {
+		case FRAME_WAITING:
+			if (*RxBuff == START_OF_MESSAGE) {
+				frame->buffer[0] = *RxBuff; 
+				frame->state = FRAME_PROSESSING;
+			}
+			break;
+		case FRAME_PROSESSING:
+
+   
+			
+			break;
+		case FRAME_COMPLETE:
+
+			break;
+	}
+}
 /**
    	@brief Funcion para limpiar el buffer de recepcion.
 
  */
-void cleanBuffer( void )
-{
+void cleanBuffer( void ) {
 	uint8_t i;
 
 	for(i = 0; i < MAX_BUFF; i++)
@@ -99,11 +117,35 @@ void cleanBuffer( void )
    	@brief 	Callback para la recepcion por UART.
 
  */
-void onRx( void *noUsado )
-{
-	RxBuff[buff_ind] = uartRxRead( UART_USB );
+void onRx( void *noUsado ) {
+	static uint8_t frame_active = 0;
+	void *ptr_msg; //TODO Definir el tipo de dato de la variable
+	char character;
+	character = uartRxRead(UART_USB);
+	if (character == START_OF_MESSAGE) {
+		if(frame_active == 0) {
+			// ptr_msg = get
+		}
+		if (ptr_msg != NULL) {
+			buff_ind = 0;
+			frame_active = 1;
+		}
+	}
+	else if ((character == END_OF_MESSAGE) && frame_active) {
+		frame_active = 0;
+		//GIVE queue ptr_msg
+	}
+	else if (frame_active) {
+		RxBuff[buff_ind++] = character;
+	}
+	else if (buff_ind >= MAX_BUFF) {
+		buff_ind = 0;
+		frame_active = 0;
+		// put(ptr_msg)
+	}
 
-	if(buff_ind < MAX_BUFF-1) buff_ind++;
-	else buff_ind = 0;
 }
+
+
+
 

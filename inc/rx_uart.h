@@ -21,8 +21,16 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
-#define MAX_BUFF		255
 
+/*=====[ Definitions of public data types ]==================================*/
+
+typedef enum {
+	FRAME_WAITING,
+	FRAME_PROSESSING,
+	FRAME_COMPLETE,
+
+	FRAME_STATE_QTY
+} frame_state_t;
 /*=====[Prototypes (declarations) of public functions]=======================*/
 
 void uart_Init( uartMap_t uart );
