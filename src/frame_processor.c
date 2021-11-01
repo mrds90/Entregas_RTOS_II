@@ -28,22 +28,41 @@
 /*=====[Definitions of public global variables]==============================*/
 
 /*=====[Definitions of private global variables]=============================*/
+uint8_t memory_pool[POOL_SIZE_BYTES];
+QMPool pool;
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 
 /*=====[Implementations of public functions]=================================*/
 
+void FrameProcessorInit() {
+   BaseType_t xReturned = xTaskCreate(
+      TASK_FrameProcessor,
+      (const char *)"Frame Processor",
+      configMINIMAL_STACK_SIZE,
+      NULL,
+      tskIDLE_PRIORITY + 1,
+      NULL
+   );
+   configASSERT(xReturned == pdPASS);
+}
+
 // Task implementation
 void TASK_FrameProcessor( void* taskParmPtr ) {
-   static uint8_t memory_pool[POOL_SIZE_BYTES];
+   //static uint8_t memory_pool[POOL_SIZE_BYTES];
+   uint8_t *mem_pool = memory_pool;
+
    static buffer_handler_t app_buffer_handler_receive = {
       .queue = NULL,
    };
+
    static buffer_handler_t app_buffer_handler_send = {
       .queue = NULL,
       .pool = NULL
    };
-   QMPool_init( app_buffer_handler_receive.pool, (void*) memory_pool, POOL_SIZE_BYTES , POOL_PACKET_SIZE);
+
+   //QMPool_init( app_buffer_handler_receive.pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES , POOL_PACKET_SIZE);
+   QMPool_init( &pool, mem_pool, POOL_SIZE_BYTES , POOL_PACKET_SIZE);
    if ( app_buffer_handler_receive.queue == NULL ) {
       app_buffer_handler_receive.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    }
@@ -53,7 +72,7 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
       app_buffer_handler_send.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    }
    configASSERT( app_buffer_handler_send.queue != NULL );
-   app_buffer_handler_send.pool = app_buffer_handler_receive.pool;
+   //app_buffer_handler_send.pool = app_buffer_handler_receive.pool;
 
    BaseType_t xReturned = xTaskCreate(
       TASK_FramePacker,
@@ -82,7 +101,6 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
 
       xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
    }
-   
 
 }
 

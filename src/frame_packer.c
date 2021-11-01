@@ -25,7 +25,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #define CHARACTER_SIZE_CMD		1
 #define CHARACTER_INDEX_DATA 	(CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_SIZE_CRC		2
-#define QUEUE_SIZE				10
+#define QUEUE_SIZE				5
 /*=====[ Definitions of private data types ]===================================*/
 
 
@@ -37,6 +37,7 @@ typedef struct {
 static char RxBuff[MAX_BUFF] = {0};
 static uint8_t buff_ind = 0;
 
+extern QMPool pool;
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
  * @brief Initializes the UART
@@ -56,25 +57,27 @@ static void UART_RX_ISRFunction(void *parameter);
 void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
+	buffer_handler_t buffer_handler_isr;
+	buffer_handler_isr.queue = NULL;
+	//buffer_handler_isr->pool = buffer_handler_app->pool;
 
-	static buffer_handler_t *buffer_handler_isr;
-	buffer_handler_isr->queue = NULL;
-	buffer_handler_isr->pool = buffer_handler_app->pool;
-	if ( buffer_handler_isr->queue  == NULL ) {
-      buffer_handler_isr->queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+	if ( buffer_handler_isr.queue  == NULL ) {
+      buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    	}
-	configASSERT(buffer_handler_isr->queue != NULL);
+	configASSERT(buffer_handler_isr.queue != NULL);
 
-	UART_RX_Init(UART_RX_ISRFunction, (void*) buffer_handler_isr);
+	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr);
 
-	static raw_frame_t raw_frame;
-	static frame_t frame_api;
-	static frame_state_t state = FRAME_WAITING;
+	raw_frame_t raw_frame;
+	frame_t frame_api;
+	frame_state_t state = FRAME_WAITING;
+
 	while (1) {
 		uint8_t frame_correct = 0;
+
 		switch (state) {
 		case FRAME_WAITING:
-			xQueueReceive(buffer_handler_isr->queue, &raw_frame, portMAX_DELAY);
+			xQueueReceive(buffer_handler_isr.queue, &raw_frame, portMAX_DELAY);
 			state = FRAME_CRC_CHECK;
 			break;
 		case FRAME_CRC_CHECK:
@@ -92,7 +95,8 @@ void TASK_FramePacker(void* taskParmPtr) {
 			}
 			else {
 				state = FRAME_WAITING;
-				QMPool_put(buffer_handler_isr->pool, raw_frame.data);
+				//QMPool_put(buffer_handler_isr->pool, raw_frame.data);
+				QMPool_put(&pool, raw_frame.data);
 				raw_frame.data = NULL;
 			}
 			break;
@@ -110,6 +114,7 @@ void TASK_FramePacker(void* taskParmPtr) {
 void TASK_FramePrinter(void* taskParmPtr) {
    buffer_handler_t *buffer_handler_print = (buffer_handler_t*) taskParmPtr;
    frame_t frame_print;
+
    // ----- Task repeat for ever -------------------------
    while(TRUE) {
       // Wait for message
@@ -117,7 +122,8 @@ void TASK_FramePrinter(void* taskParmPtr) {
 	  // Print message
 	  snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
 	  printf("%s\n", frame_print.id);
-	  QMPool_put(buffer_handler_print->pool, frame_print.id);
+	  //QMPool_put(buffer_handler_print->pool, frame_print.id);
+	  QMPool_put(&pool, frame_print.id);
    }
 }
 /*=====[Implementations of private functions]================================*/
@@ -140,7 +146,8 @@ static void UART_RX_ISRFunction( void *parameter ) {
 
 	if (character == START_OF_MESSAGE) {
 		if(frame_active == 0) {
-			raw_frame->data = (char*) QMPool_get(buffer_handler->pool,0);
+			//raw_frame->data = (char*) QMPool_get(buffer_handler->pool,0);
+			raw_frame->data = (char*) QMPool_get(&pool,0);
 		}
 		if (raw_frame->data != NULL) {
 			buff_ind = 0;
@@ -163,7 +170,8 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	else if (buff_ind >= MAX_BUFF) {
 		buff_ind = 0;
 		frame_active = 0;
-		QMPool_put(buffer_handler->pool, (void*) raw_frame->data);
+		//QMPool_put(buffer_handler->pool, (void*) raw_frame->data);
+		QMPool_put(&pool, (void*) raw_frame->data);
 	}
 }
 

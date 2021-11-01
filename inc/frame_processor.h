@@ -29,6 +29,7 @@ extern "C" {
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 
+void FrameProcessorInit();
 void TASK_FrameProcessor( void* taskParmPtr );  // Task declaration
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
