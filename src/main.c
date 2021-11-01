@@ -8,11 +8,11 @@
 /*=====[Inclusions of private function dependencies]=========================*/
 #include "FreeRTOS.h"
 #include "FreeRTOSConfig.h"
-#include "queue.h"
+#include "task.h"
 #include "sapi.h"
+#include "frame_processor.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define QUEUE_SIZE 10
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
@@ -33,8 +33,15 @@ int main( void )
 {
    /* Inicializar la placa */
    boardConfig();
-   
-
+   BaseType_t xReturned = xTaskCreate(
+      TASK_FrameProcessor,
+      (const char *)"Frame Processor",
+      configMINIMAL_STACK_SIZE,
+      NULL,
+      tskIDLE_PRIORITY + 1,
+      NULL
+   );
+   configASSERT(xReturned == pdPASS);
    /* arranco el scheduler */
    vTaskStartScheduler();
    return 0;

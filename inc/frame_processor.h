@@ -5,8 +5,8 @@
 
 /*=====[Avoid multiple inclusion - begin]====================================*/
 
-#ifndef __USER_TASKS_H__
-#define __USER_TASKS_H__
+#ifndef __FRAME_PROCESSOR_H__
+#define __FRAME_PROCESSOR_H__
 
 /*=====[Inclusions of public function dependencies]==========================*/
 
@@ -29,7 +29,7 @@ extern "C" {
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 
-void myTask( void* taskParmPtr );  // Task declaration
+void TASK_FrameProcessor( void* taskParmPtr );  // Task declaration
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
@@ -41,4 +41,4 @@ void myTask( void* taskParmPtr );  // Task declaration
 
 /*=====[Avoid multiple inclusion - end]======================================*/
 
-#endif /* __USER_TASKS_H__ */
+#endif /* __FRAME_PROCESSOR_H__ */

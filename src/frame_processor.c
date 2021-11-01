@@ -5,7 +5,7 @@
 
 /*=====[Inclusion of own header]=============================================*/
 
-#include "userTasks.h"
+#include "frame_processor.h"
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "qmpool.h"
@@ -15,8 +15,9 @@
 /*=====[Inclusions of private function dependencies]=========================*/
 
 /*=====[Definition macros of private constants]==============================*/
-#define POOL_SIZE_BYTES       4096
-#define POOL_BLOCK_SIZE       200
+#define POOL_PACKET_SIZE      (200)
+#define POOL_PACKET_COUNT     (10)
+#define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT)
 #define QUEUE_SIZE            10
 /*=====[Private function-like macros]========================================*/
 
@@ -33,17 +34,16 @@
 /*=====[Implementations of public functions]=================================*/
 
 // Task implementation
-void TASK_App( void* taskParmPtr ) {
+void TASK_FrameProcessor( void* taskParmPtr ) {
    static uint8_t memory_pool[POOL_SIZE_BYTES];
    static buffer_handler_t app_buffer_handler_receive = {
       .queue = NULL,
-      .pool = NULL
    };
    static buffer_handler_t app_buffer_handler_send = {
       .queue = NULL,
       .pool = NULL
    };
-   QMPool_init( app_buffer_handler_receive.pool, (void*) memory_pool, POOL_SIZE_BYTES , POOL_BLOCK_SIZE);
+   QMPool_init( app_buffer_handler_receive.pool, (void*) memory_pool, POOL_SIZE_BYTES , POOL_PACKET_SIZE);
    if ( app_buffer_handler_receive.queue == NULL ) {
       app_buffer_handler_receive.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    }
@@ -60,7 +60,7 @@ void TASK_App( void* taskParmPtr ) {
       (const char *)"Frame Packer",
       configMINIMAL_STACK_SIZE,
       (void *)&app_buffer_handler_receive,
-      tskIDLE_PRIORITY + 1,
+      tskIDLE_PRIORITY + 2,
       NULL
    );
    configASSERT( xReturned == pdPASS );

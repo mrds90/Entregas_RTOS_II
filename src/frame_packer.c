@@ -12,6 +12,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #include "qmpool.h"
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "task.h"
 #include "sapi.h"
 
 /*=====[Definition macros of private constants]==============================*/
@@ -56,9 +57,12 @@ void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
 
-	static buffer_handler_t *buffer_handler_isr = {NULL};
+	static buffer_handler_t *buffer_handler_isr;
+	buffer_handler_isr->queue = NULL;
 	buffer_handler_isr->pool = buffer_handler_app->pool;
-	buffer_handler_isr->queue = xQueueCreate(QUEUE_SIZE, sizeof(raw_frame_t*));
+	if ( buffer_handler_isr->queue  == NULL ) {
+      buffer_handler_isr->queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+   	}
 	configASSERT(buffer_handler_isr->queue != NULL);
 
 	UART_RX_Init(UART_RX_ISRFunction, (void*) buffer_handler_isr);
