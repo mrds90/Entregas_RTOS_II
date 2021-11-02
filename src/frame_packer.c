@@ -16,7 +16,6 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #include "sapi.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define MAX_BUFF				200
 #define START_OF_MESSAGE 		'('
 #define END_OF_MESSAGE 			')'
 #define CHARACTER_INDEX_ID 		0
@@ -33,11 +32,10 @@ typedef struct {
 	char *data;
 	uint8_t data_size;
 } raw_frame_t;
-/*=====[Definitions of private global variables]=============================*/
-static char RxBuff[MAX_BUFF] = {0};
-static uint8_t buff_ind = 0;
 
-extern QMPool pool;
+/*=====[Definitions of private variables]=============================*/
+
+
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
  * @brief Initializes the UART
@@ -57,15 +55,17 @@ static void UART_RX_ISRFunction(void *parameter);
 void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
+	QMPool* pool_frame_packer = buffer_handler_app->pool;
+	
 	buffer_handler_t buffer_handler_isr;
 	buffer_handler_isr.queue = NULL;
-	//buffer_handler_isr->pool = buffer_handler_app->pool;
 
 	if ( buffer_handler_isr.queue  == NULL ) {
-      buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+		buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    	}
 	configASSERT(buffer_handler_isr.queue != NULL);
 
+	buffer_handler_isr.pool = pool_frame_packer;
 	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr);
 
 	raw_frame_t raw_frame;
@@ -95,8 +95,8 @@ void TASK_FramePacker(void* taskParmPtr) {
 			}
 			else {
 				state = FRAME_WAITING;
-				//QMPool_put(buffer_handler_isr->pool, raw_frame.data);
-				QMPool_put(&pool, raw_frame.data);
+				QMPool_put(pool_frame_packer, raw_frame.data);
+				// QMPool_put(&pool, raw_frame.data);
 				raw_frame.data = NULL;
 			}
 			break;
@@ -122,8 +122,7 @@ void TASK_FramePrinter(void* taskParmPtr) {
 	  // Print message
 	  snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
 	  printf("%s\n", frame_print.id);
-	  //QMPool_put(buffer_handler_print->pool, frame_print.id);
-	  QMPool_put(&pool, frame_print.id);
+	  QMPool_put(buffer_handler_print->pool, frame_print.id);
    }
 }
 /*=====[Implementations of private functions]================================*/
@@ -138,27 +137,30 @@ static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {
 
 static void UART_RX_ISRFunction( void *parameter ) {
 	static uint8_t frame_active = 0;
-	static raw_frame_t *raw_frame; 
+	static raw_frame_t raw_frame; 
+	static char RxBuff[MAX_BUFFER_SIZE] = {0};
+	static uint8_t buff_ind = 0;
 	BaseType_t px_higher_priority_task_woken = pdFALSE;
 	buffer_handler_t* buffer_handler = (buffer_handler_t*) parameter;
+	QMPool *isr_pool = buffer_handler->pool;
+	
 	char character;
 	character = uartRxRead(UART_USB);
 
 	if (character == START_OF_MESSAGE) {
 		if(frame_active == 0) {
-			//raw_frame->data = (char*) QMPool_get(buffer_handler->pool,0);
-			raw_frame->data = (char*) QMPool_get(&pool,0);
+			raw_frame.data = (char*) QMPool_get(isr_pool,0);
 		}
-		if (raw_frame->data != NULL) {
+		if (raw_frame.data != NULL) {
 			buff_ind = 0;
 			frame_active = 1;
 		}
 	}
 	else if ((character == END_OF_MESSAGE) && frame_active) {
 		frame_active = 0;
-		raw_frame->data_size = buff_ind;
+		raw_frame.data = (char *) &buff_ind;
 		if(buffer_handler->queue != NULL) {
-			xQueueSendFromISR(buffer_handler->queue, raw_frame, &px_higher_priority_task_woken);
+			xQueueSendFromISR(buffer_handler->queue, &raw_frame, &px_higher_priority_task_woken);
 			if (px_higher_priority_task_woken == pdTRUE) {
 				portYIELD_FROM_ISR(px_higher_priority_task_woken);
 			}
@@ -167,11 +169,10 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	else if (frame_active) {
 		RxBuff[buff_ind++] = character;
 	}
-	else if (buff_ind >= MAX_BUFF) {
+	else if (buff_ind >= MAX_BUFFER_SIZE) {
 		buff_ind = 0;
 		frame_active = 0;
-		//QMPool_put(buffer_handler->pool, (void*) raw_frame->data);
-		QMPool_put(&pool, (void*) raw_frame->data);
+		QMPool_put(isr_pool, (void*) raw_frame.data);
 	}
 }
 

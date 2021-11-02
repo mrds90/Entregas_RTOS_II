@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
+#define MAX_BUFFER_SIZE				200
 
 /*=====[ Definitions of public data types ]==================================*/
 
