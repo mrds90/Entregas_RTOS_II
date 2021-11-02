@@ -44,22 +44,38 @@ typedef struct {
  * @param parameter 
  */
 static void UART_RX_Init( void *UARTCallBackFunc, void *parameter );
+
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
  * 
  * @param parameter buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
  */
 static void UART_RX_ISRFunction(void *parameter);
+
 /*=====[Implementations of public functions]=================================*/
+
+BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive) {
+
+	BaseType_t xReturned = xTaskCreate(
+		TASK_FramePacker,
+		(const char *)"Frame Packer",
+		configMINIMAL_STACK_SIZE * 5,
+		(void *)app_buffer_handler_receive,
+		tskIDLE_PRIORITY + 1,
+		NULL
+	);
+
+	return xReturned;
+}
 
 void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
 	
 	static buffer_handler_t buffer_handler_isr;
-	buffer_handler_isr.queue = NULL;
+	buffer_handler_isr.queue = NULL;  // Haria falta esto? La tarea la vamos a eliminar en algun momento?
 
-	if ( buffer_handler_isr.queue  == NULL ) {
+	if ( buffer_handler_isr.queue  == NULL ) {  // Si la linea de arriba no es necesaria esta tampoco
 		buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    	}
 	configASSERT(buffer_handler_isr.queue != NULL);
@@ -77,10 +93,13 @@ void TASK_FramePacker(void* taskParmPtr) {
 		switch (state) {
 			case FRAME_WAITING:
 				xQueueReceive(buffer_handler_isr.queue, &raw_frame, portMAX_DELAY);
+							// Separar aca los campos ID, C+DATA y CRC del paquete recibido
+							// Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
 				state = FRAME_CRC_CHECK;
 				break;
 			case FRAME_CRC_CHECK:
 				// CHECK CRC
+							// Si el CRC es valido, enviar C+DATA a la capa C3
 				state = FRAME_PROSESSING;
 				break;
 			case FRAME_PROSESSING:
@@ -123,14 +142,23 @@ void TASK_FramePrinter(void* taskParmPtr) {
       // Wait for message
       xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
 	  // Print message
-	  snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
-	  printf("%s\n", frame_print.id);
+	  //snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
+	  uartWriteString(UART_USB, frame_print.id);
+	  uartWriteString(UART_USB, "\n");
+	  uartWriteString(UART_USB, frame_print.cmd);
+	  uartWriteString(UART_USB, "\n");
+	  uartWriteString(UART_USB, frame_print.data);
+	  uartWriteString(UART_USB, "\n");
+	  //printf("%s\n", frame_print.id);
+
+	  portENTER_CRITICAL();
 	  QMPool_put(buffer_handler_print->pool, frame_print.id);
+	  portEXIT_CRITICAL();
    }
 }
 /*=====[Implementations of private functions]================================*/
 
-static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {
+static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
    uartConfig(UART_USB, 115200);
    uartCallbackSet(UART_USB, UART_RECEIVE, UARTCallBackFunc, parameter);
    uartInterrupt(UART_USB, true);

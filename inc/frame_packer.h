@@ -49,6 +49,7 @@ typedef struct {
 } buffer_handler_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
+BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive);
 void TASK_FramePacker(void* taskParmPtr);
 void TASK_FramePrinter(void* taskParmPtr);
 void uart_Init( uartMap_t uart );

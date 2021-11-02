@@ -34,7 +34,8 @@
 /*=====[Implementations of public functions]=================================*/
 
 void FrameProcessorInit() {
-static uint8_t memory_pool[POOL_SIZE_BYTES];
+   static uint8_t memory_pool[POOL_SIZE_BYTES];
+
    BaseType_t xReturned = xTaskCreate(
       TASK_FrameProcessor,
       (const char *)"Frame Processor",
@@ -83,16 +84,19 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
 
    configASSERT( xReturned == pdPASS );
 
-   xReturned = xTaskCreate(
-      TASK_FramePacker,
-      (const char *)"Frame Packer",
-      configMINIMAL_STACK_SIZE * 5,
-      (void *)&app_buffer_handler_receive,
-      tskIDLE_PRIORITY + 1,
-      NULL
-   );
-
+   xReturned = FramePackerInit(&app_buffer_handler_receive);
    configASSERT( xReturned == pdPASS );
+
+   // xReturned = xTaskCreate(   // Convendria crear una funcion que sea FramePackerInit() para que cree la tarea dentro de la capa C2
+   //    TASK_FramePacker,
+   //    (const char *)"Frame Packer",
+   //    configMINIMAL_STACK_SIZE * 5,
+   //    (void *)&app_buffer_handler_receive,
+   //    tskIDLE_PRIORITY + 1,
+   //    NULL
+   // );
+
+   // configASSERT( xReturned == pdPASS );
 
    frame_t *frame;
    
