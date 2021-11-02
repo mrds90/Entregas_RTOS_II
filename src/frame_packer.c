@@ -29,7 +29,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 
 
 typedef struct {
-	char *data;
+	uint8_t *data;
 	uint8_t data_size;
 } raw_frame_t;
 
@@ -55,7 +55,6 @@ static void UART_RX_ISRFunction(void *parameter);
 void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
-	QMPool* pool_frame_packer = buffer_handler_app->pool;
 	
 	buffer_handler_t buffer_handler_isr;
 	buffer_handler_isr.queue = NULL;
@@ -65,7 +64,7 @@ void TASK_FramePacker(void* taskParmPtr) {
    	}
 	configASSERT(buffer_handler_isr.queue != NULL);
 
-	buffer_handler_isr.pool = pool_frame_packer;
+	buffer_handler_isr.pool = buffer_handler_app->pool;
 	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr);
 
 	raw_frame_t raw_frame;
@@ -95,8 +94,7 @@ void TASK_FramePacker(void* taskParmPtr) {
 			}
 			else {
 				state = FRAME_WAITING;
-				QMPool_put(pool_frame_packer, raw_frame.data);
-				// QMPool_put(&pool, raw_frame.data);
+				QMPool_put(buffer_handler_isr.pool, raw_frame.data);
 				raw_frame.data = NULL;
 			}
 			break;
@@ -142,14 +140,13 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	static uint8_t buff_ind = 0;
 	BaseType_t px_higher_priority_task_woken = pdFALSE;
 	buffer_handler_t* buffer_handler = (buffer_handler_t*) parameter;
-	QMPool *isr_pool = buffer_handler->pool;
-	
+		
 	char character;
 	character = uartRxRead(UART_USB);
 
 	if (character == START_OF_MESSAGE) {
 		if(frame_active == 0) {
-			raw_frame.data = (char*) QMPool_get(isr_pool,0);
+			raw_frame.data = (uint8_t*) QMPool_get(buffer_handler->pool,0);
 		}
 		if (raw_frame.data != NULL) {
 			buff_ind = 0;
@@ -172,7 +169,7 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	else if (buff_ind >= MAX_BUFFER_SIZE) {
 		buff_ind = 0;
 		frame_active = 0;
-		QMPool_put(isr_pool, (void*) raw_frame.data);
+		QMPool_put(buffer_handler->pool, (void*) raw_frame.data);
 	}
 }
 

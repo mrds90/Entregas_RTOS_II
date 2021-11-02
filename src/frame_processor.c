@@ -61,7 +61,7 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
       .pool = &pool,
    };
 
-   QMPool_init( &pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES , POOL_PACKET_SIZE);
+   QMPool_init( &pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
    if ( app_buffer_handler_receive.queue == NULL ) {
       app_buffer_handler_receive.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
    }
