@@ -96,7 +96,9 @@ void TASK_FramePacker(void* taskParmPtr) {
 				}
 				else {
 					state = FRAME_WAITING;
+					portENTER_CRITICAL(); 
 					QMPool_put(buffer_handler_isr.pool, raw_frame.data);
+					portEXIT_CRITICAL(); 
 					raw_frame.data = NULL;
 				}
 				break;
