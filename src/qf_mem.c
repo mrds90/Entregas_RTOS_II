@@ -147,7 +147,7 @@ void QMPool_put( QMPool * const me, void *b )
     * the block pointer must be from this pool.
     */
 
-    portENTER_CRITICAL(); //Enter on critical section
+    // portENTER_CRITICAL(); //Enter on critical section
     //uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
 
     ( ( QFreeBlock * )b )->next = ( QFreeBlock * )me->free_head; /* link into list */
@@ -155,7 +155,7 @@ void QMPool_put( QMPool * const me, void *b )
     ++me->nFree;            /* one more free block in this pool */
     //taskEXIT_CRITICAL_FROM_ISR( uxSavedInterruptStatus );
 
-    portEXIT_CRITICAL(); //Exit from critical section
+    // portEXIT_CRITICAL(); //Exit from critical section
 }
 
 /****************************************************************************/
@@ -191,7 +191,7 @@ void *QMPool_get( QMPool * const me, unsigned short const margin )
 {
     QFreeBlock *fb;
 
-    portENTER_CRITICAL(); //Enter on critical section
+    // portENTER_CRITICAL(); //Enter on critical section
 
     /* have more free blocks than the requested margin? */
     if ( me->nFree > ( QMPoolCtr )margin )
@@ -236,7 +236,7 @@ void *QMPool_get( QMPool * const me, unsigned short const margin )
 
     }
 
-    portEXIT_CRITICAL(); //Exit from critical section
+    // portEXIT_CRITICAL(); //Exit from critical section
 
     return fb;  /* return the block or NULL pointer to the caller */
 }

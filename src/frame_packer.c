@@ -56,7 +56,7 @@ void TASK_FramePacker(void* taskParmPtr) {
 	
 	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
 	
-	buffer_handler_t buffer_handler_isr;
+	static buffer_handler_t buffer_handler_isr;
 	buffer_handler_isr.queue = NULL;
 
 	if ( buffer_handler_isr.queue  == NULL ) {
@@ -75,35 +75,38 @@ void TASK_FramePacker(void* taskParmPtr) {
 		uint8_t frame_correct = 0;
 
 		switch (state) {
-		case FRAME_WAITING:
-			xQueueReceive(buffer_handler_isr.queue, &raw_frame, portMAX_DELAY);
-			state = FRAME_CRC_CHECK;
-			break;
-		case FRAME_CRC_CHECK:
-			// CHECK CRC
-			break;
-		case FRAME_PROSESSING:
-			// PROCESS FRAME
-			//TODO: Routine that validate the frame
-			if(frame_correct) {
-				frame_api.id = &raw_frame.data[CHARACTER_INDEX_ID];
-				frame_api.cmd = &raw_frame.data[CHARACTER_INDEX_CMD];
-				frame_api.data = &raw_frame.data[CHARACTER_INDEX_DATA];
-				frame_api.data_size = raw_frame.data_size - CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC;
-				state = FRAME_COMPLETE;
-			}
-			else {
+			case FRAME_WAITING:
+				xQueueReceive(buffer_handler_isr.queue, &raw_frame, portMAX_DELAY);
+				state = FRAME_CRC_CHECK;
+				break;
+			case FRAME_CRC_CHECK:
+				// CHECK CRC
+				state = FRAME_PROSESSING;
+				break;
+			case FRAME_PROSESSING:
+				// PROCESS FRAME
+				//TODO: Routine that validate the frame
+				frame_correct = 1;
+				if(frame_correct) {
+					frame_api.id = &raw_frame.data[CHARACTER_INDEX_ID];
+					frame_api.cmd = &raw_frame.data[CHARACTER_INDEX_CMD];
+					frame_api.data = &raw_frame.data[CHARACTER_INDEX_DATA];
+					frame_api.data_size = raw_frame.data_size - CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC;
+					state = FRAME_COMPLETE;
+				}
+				else {
+					state = FRAME_WAITING;
+					QMPool_put(buffer_handler_isr.pool, raw_frame.data);
+					raw_frame.data = NULL;
+				}
+				break;
+			case FRAME_COMPLETE:
+				// SEND TO API
+				xQueueSend(buffer_handler_app->queue, &frame_api, portMAX_DELAY);
 				state = FRAME_WAITING;
-				QMPool_put(buffer_handler_isr.pool, raw_frame.data);
-				raw_frame.data = NULL;
-			}
-			break;
-		case FRAME_COMPLETE:
-			// SEND TO API
-			xQueueSend(buffer_handler_app->queue, &frame_api, portMAX_DELAY);
-			break;
-		default:
-			break;
+				break;
+			default:
+				break;
 		}
 		
 	}
@@ -155,7 +158,7 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	}
 	else if ((character == END_OF_MESSAGE) && frame_active) {
 		frame_active = 0;
-		raw_frame.data = (char *) &buff_ind;
+		raw_frame.data_size = buff_ind;
 		if(buffer_handler->queue != NULL) {
 			xQueueSendFromISR(buffer_handler->queue, &raw_frame, &px_higher_priority_task_woken);
 			if (px_higher_priority_task_woken == pdTRUE) {
@@ -164,7 +167,7 @@ static void UART_RX_ISRFunction( void *parameter ) {
 		}
 	}
 	else if (frame_active) {
-		RxBuff[buff_ind++] = character;
+		raw_frame.data[buff_ind++] = character;
 	}
 	else if (buff_ind >= MAX_BUFFER_SIZE) {
 		buff_ind = 0;
