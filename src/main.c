@@ -33,15 +33,9 @@ int main( void )
 {
    /* Inicializar la placa */
    boardConfig();
-   BaseType_t xReturned = xTaskCreate(
-      TASK_FrameProcessor,
-      (const char *)"Frame Processor",
-      configMINIMAL_STACK_SIZE,
-      NULL,
-      tskIDLE_PRIORITY + 1,
-      NULL
-   );
-   configASSERT(xReturned == pdPASS);
+
+   FrameProcessorInit();
+
    /* arranco el scheduler */
    vTaskStartScheduler();
    return 0;

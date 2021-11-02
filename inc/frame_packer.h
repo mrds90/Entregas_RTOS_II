@@ -32,7 +32,6 @@ typedef enum {
 	FRAME_CRC_CHECK,
 	FRAME_PROSESSING,
 	FRAME_COMPLETE,
-
 	FRAME_STATE_QTY
 } frame_state_t;
 
@@ -47,6 +46,7 @@ typedef struct {
 	QMPool *pool;
 	QueueHandle_t queue;
 } buffer_handler_t;
+
 /*=====[Prototypes (declarations) of public functions]=======================*/
 void TASK_FramePacker(void* taskParmPtr);
 void TASK_FramePrinter(void* taskParmPtr);
