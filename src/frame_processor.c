@@ -87,17 +87,6 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
    xReturned = FramePackerInit(&app_buffer_handler_receive);
    configASSERT( xReturned == pdPASS );
 
-   // xReturned = xTaskCreate(   // Convendria crear una funcion que sea FramePackerInit() para que cree la tarea dentro de la capa C2
-   //    TASK_FramePacker,
-   //    (const char *)"Frame Packer",
-   //    configMINIMAL_STACK_SIZE * 5,
-   //    (void *)&app_buffer_handler_receive,
-   //    tskIDLE_PRIORITY + 1,
-   //    NULL
-   // );
-
-   // configASSERT( xReturned == pdPASS );
-
    frame_t *frame;
    
    while( true ) {

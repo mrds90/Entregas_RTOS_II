@@ -16,22 +16,18 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #include "sapi.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define START_OF_MESSAGE 		'('
-#define END_OF_MESSAGE 			')'
-#define CHARACTER_INDEX_ID 		0
-#define CHARACTER_SIZE_ID		4
-#define CHARACTER_INDEX_CMD 	(CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
-#define CHARACTER_SIZE_CMD		1
-#define CHARACTER_INDEX_DATA 	(CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
-#define CHARACTER_SIZE_CRC		2
-#define QUEUE_SIZE				5
+#define START_OF_MESSAGE 				'('
+#define END_OF_MESSAGE 					')'
+#define CHARACTER_INDEX_ID 				0
+#define CHARACTER_SIZE_ID				4
+#define CHARACTER_INDEX_CMD 			(CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
+#define CHARACTER_SIZE_CMD				1
+#define CHARACTER_INDEX_DATA 			(CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
+#define CHARACTER_SIZE_CRC				2
+#define QUEUE_SIZE						5
+#define CHARACTER_BEFORE_DATA_SIZE 		((CHARACTER_SIZE_ID) * sizeof(uint8_t))
 /*=====[ Definitions of private data types ]===================================*/
 
-
-typedef struct {
-	uint8_t *data;
-	uint8_t data_size;
-} raw_frame_t;
 
 /*=====[Definitions of private variables]=============================*/
 
@@ -43,7 +39,7 @@ typedef struct {
  * @param UARTCallBackFunc 
  * @param parameter 
  */
-static void UART_RX_Init( void *UARTCallBackFunc, void *parameter );
+static void UART_RX_Init(void *UARTCallBackFunc, void *parameter);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
@@ -51,6 +47,8 @@ static void UART_RX_Init( void *UARTCallBackFunc, void *parameter );
  * @param parameter buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
  */
 static void UART_RX_ISRFunction(void *parameter);
+
+static void TASK_FramePacker(void* taskParmPtr);
 
 /*=====[Implementations of public functions]=================================*/
 
@@ -68,23 +66,40 @@ BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive) {
 	return xReturned;
 }
 
-void TASK_FramePacker(void* taskParmPtr) {
-	
-	buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
+void TASK_FramePrinter(void* taskParmPtr) {
+   buffer_handler_t *buffer_handler_print = (buffer_handler_t*) taskParmPtr;
+   frame_t frame_print;
+
+   // ----- Task repeat for ever -------------------------
+   while(TRUE) {
+      // Wait for message
+      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
+	  // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
+	  uartWriteString(UART_USB, frame_print.data);
+	  uartWriteString(UART_USB, "\n");
+	  //printf("%s\n", frame_print.id);
+
+	  taskENTER_CRITICAL();
+	  QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+	  taskEXIT_CRITICAL();
+   }
+}
+/*=====[Implementations of private functions]================================*/
+
+static void TASK_FramePacker(void* taskParmPtr) {
 	
 	static buffer_handler_t buffer_handler_isr;
-	buffer_handler_isr.queue = NULL;  // Haria falta esto? La tarea la vamos a eliminar en algun momento?
+	
+    buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
 
-	if ( buffer_handler_isr.queue  == NULL ) {  // Si la linea de arriba no es necesaria esta tampoco
-		buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-   	}
+    buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
 	configASSERT(buffer_handler_isr.queue != NULL);
 
 	buffer_handler_isr.pool = buffer_handler_app->pool;
 	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr);
 
-	raw_frame_t raw_frame;
-	frame_t frame_api;
+	frame_t raw_frame;
+	frame_t frame_app;
 	frame_state_t state = FRAME_WAITING;
 
 	while (1) {
@@ -107,10 +122,8 @@ void TASK_FramePacker(void* taskParmPtr) {
 				//TODO: Routine that validate the frame
 				frame_correct = 1;
 				if(frame_correct) {
-					frame_api.id = &raw_frame.data[CHARACTER_INDEX_ID];
-					frame_api.cmd = &raw_frame.data[CHARACTER_INDEX_CMD];
-					frame_api.data = &raw_frame.data[CHARACTER_INDEX_DATA];
-					frame_api.data_size = raw_frame.data_size - CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC;
+					frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
+					frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
 					state = FRAME_COMPLETE;
 				}
 				else {
@@ -123,7 +136,8 @@ void TASK_FramePacker(void* taskParmPtr) {
 				break;
 			case FRAME_COMPLETE:
 				// SEND TO API
-				xQueueSend(buffer_handler_app->queue, &frame_api, portMAX_DELAY);
+				frame_app.data[frame_app.data_size] = '\0';
+				xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
 				state = FRAME_WAITING;
 				break;
 			default:
@@ -132,31 +146,6 @@ void TASK_FramePacker(void* taskParmPtr) {
 		
 	}
 }
-
-void TASK_FramePrinter(void* taskParmPtr) {
-   buffer_handler_t *buffer_handler_print = (buffer_handler_t*) taskParmPtr;
-   frame_t frame_print;
-
-   // ----- Task repeat for ever -------------------------
-   while(TRUE) {
-      // Wait for message
-      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-	  // Print message
-	  //snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
-	  uartWriteString(UART_USB, frame_print.id);
-	  uartWriteString(UART_USB, "\n");
-	  uartWriteString(UART_USB, frame_print.cmd);
-	  uartWriteString(UART_USB, "\n");
-	  uartWriteString(UART_USB, frame_print.data);
-	  uartWriteString(UART_USB, "\n");
-	  //printf("%s\n", frame_print.id);
-
-	  portENTER_CRITICAL();
-	  QMPool_put(buffer_handler_print->pool, frame_print.id);
-	  portEXIT_CRITICAL();
-   }
-}
-/*=====[Implementations of private functions]================================*/
 
 static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
    uartConfig(UART_USB, 115200);
@@ -168,7 +157,7 @@ static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {  // Deberi
 
 static void UART_RX_ISRFunction( void *parameter ) {
 	static uint8_t frame_active = 0;
-	static raw_frame_t raw_frame; 
+	static frame_t raw_frame;
 	static char RxBuff[MAX_BUFFER_SIZE] = {0};
 	static uint8_t buff_ind = 0;
 	BaseType_t px_higher_priority_task_woken = pdFALSE;
@@ -188,7 +177,7 @@ static void UART_RX_ISRFunction( void *parameter ) {
 	}
 	else if ((character == END_OF_MESSAGE) && frame_active) {
 		frame_active = 0;
-		raw_frame.data_size = buff_ind;
+		raw_frame.data_size = buff_ind - CHARACTER_SIZE_CRC;
 		if(buffer_handler->queue != NULL) {
 			xQueueSendFromISR(buffer_handler->queue, &raw_frame, &px_higher_priority_task_woken);
 			if (px_higher_priority_task_woken == pdTRUE) {
@@ -196,13 +185,13 @@ static void UART_RX_ISRFunction( void *parameter ) {
 			}
 		}
 	}
-	else if (frame_active) {
-		raw_frame.data[buff_ind++] = character;
-	}
 	else if (buff_ind >= MAX_BUFFER_SIZE) {
 		buff_ind = 0;
 		frame_active = 0;
 		QMPool_put(buffer_handler->pool, (void*) raw_frame.data);
+	}
+	else if (frame_active) {
+		raw_frame.data[buff_ind++] = character;
 	}
 }
 

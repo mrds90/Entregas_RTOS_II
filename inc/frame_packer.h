@@ -37,9 +37,7 @@ typedef enum {
 } frame_state_t;
 
 typedef struct {
-	char *id;
-	char *cmd;
-	char *data;
+	uint8_t *data;
 	uint8_t data_size;
 } frame_t;
 
@@ -50,13 +48,7 @@ typedef struct {
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive);
-void TASK_FramePacker(void* taskParmPtr);
 void TASK_FramePrinter(void* taskParmPtr);
-void uart_Init( uartMap_t uart );
-void checkPckgInit( char sDelimiter, char eDelimiter );
-uint8_t checkPckg( char* pckg );
-void cleanBuffer( void );
-void onRx( void *noUsado );
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
