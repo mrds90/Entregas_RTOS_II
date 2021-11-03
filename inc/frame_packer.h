@@ -46,8 +46,12 @@ typedef struct {
 	QueueHandle_t queue;
 } buffer_handler_t;
 
+typedef struct {
+	buffer_handler_t *buffer_handler;
+	uartMap_t uart;
+} frame_packer_resources_t;
 /*=====[Prototypes (declarations) of public functions]=======================*/
-BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive);
+BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 void TASK_FramePrinter(void* taskParmPtr);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/

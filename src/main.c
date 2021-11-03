@@ -34,7 +34,7 @@ int main( void )
    /* Inicializar la placa */
    boardConfig();
 
-   FrameProcessorInit();
+   FrameProcessorInit(UART_USB);
 
    /* arranco el scheduler */
    vTaskStartScheduler();

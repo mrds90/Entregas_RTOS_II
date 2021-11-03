@@ -39,7 +39,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * @param UARTCallBackFunc 
  * @param parameter 
  */
-static void UART_RX_Init(void *UARTCallBackFunc, void *parameter);
+static void UART_RX_Init( void *UARTCallBackFunc, void *parameter, uartMap_t uart);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
@@ -52,13 +52,16 @@ static void TASK_FramePacker(void* taskParmPtr);
 
 /*=====[Implementations of public functions]=================================*/
 
-BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive) {
-
+BaseType_t FramePackerInit(buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
+	frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
+	configASSERT(frame_packer_resources != NULL);
+	frame_packer_resources->uart = uart;
+	frame_packer_resources->buffer_handler = app_buffer_handler_receive;
 	BaseType_t xReturned = xTaskCreate(
 		TASK_FramePacker,
 		(const char *)"Frame Packer",
 		configMINIMAL_STACK_SIZE * 5,
-		(void *)app_buffer_handler_receive,
+		(void *) frame_packer_resources,
 		tskIDLE_PRIORITY + 1,
 		NULL
 	);
@@ -89,14 +92,17 @@ void TASK_FramePrinter(void* taskParmPtr) {
 static void TASK_FramePacker(void* taskParmPtr) {
 	
 	static buffer_handler_t buffer_handler_isr;
-	
-    buffer_handler_t* buffer_handler_app = (buffer_handler_t*) taskParmPtr;
+	frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t*) taskParmPtr;
+
+    buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
+	uartMap_t uart = frame_packer_resources->uart;
+	vPortFree(frame_packer_resources);
 
     buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
 	configASSERT(buffer_handler_isr.queue != NULL);
 
 	buffer_handler_isr.pool = buffer_handler_app->pool;
-	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr);
+	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr, uart);
 
 	frame_t raw_frame;
 	frame_t frame_app;
@@ -147,10 +153,10 @@ static void TASK_FramePacker(void* taskParmPtr) {
 	}
 }
 
-static void UART_RX_Init( void *UARTCallBackFunc, void *parameter ) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
-   uartConfig(UART_USB, 115200);
-   uartCallbackSet(UART_USB, UART_RECEIVE, UARTCallBackFunc, parameter);
-   uartInterrupt(UART_USB, true);
+static void UART_RX_Init( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
+   uartConfig(uart, 115200);
+   uartCallbackSet(uart, UART_RECEIVE, UARTCallBackFunc, parameter);
+   uartInterrupt(uart, true);
 }
 
 /*=====[Implementations of interrupt functions]==============================*/

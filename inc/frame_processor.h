@@ -29,7 +29,7 @@ extern "C" {
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 
-void FrameProcessorInit();
+void FrameProcessorInit(uartMap_t uart);
 void TASK_FrameProcessor( void* taskParmPtr );  // Task declaration
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/

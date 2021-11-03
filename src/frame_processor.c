@@ -22,7 +22,10 @@
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
-
+typedef struct {
+    uint8_t *buffer;
+    uartMap_t uart;
+} app_resources_t;
 /*=====[Definitions of external public global variables]=====================*/
 
 /*=====[Definitions of public global variables]==============================*/
@@ -33,14 +36,16 @@
 
 /*=====[Implementations of public functions]=================================*/
 
-void FrameProcessorInit() {
-   static uint8_t memory_pool[POOL_SIZE_BYTES];
+void FrameProcessorInit(uartMap_t uart) {
+   static app_resources_t resources;
+   resources.uart = uart;
+   resources.buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
 
    BaseType_t xReturned = xTaskCreate(
       TASK_FrameProcessor,
       (const char *)"Frame Processor",
       configMINIMAL_STACK_SIZE,
-      (void*) memory_pool,
+      (void*) &resources,
       tskIDLE_PRIORITY + 1,
       NULL
    );
@@ -49,7 +54,9 @@ void FrameProcessorInit() {
 
 // Task implementation
 void TASK_FrameProcessor( void* taskParmPtr ) {
-   uint8_t *memory_pool = (uint8_t*) taskParmPtr;
+   app_resources_t *resources = (app_resources_t*) taskParmPtr;
+   uint8_t *memory_pool = resources->buffer;
+   uartMap_t uart = resources->uart;
    static QMPool pool;
 
    static buffer_handler_t app_buffer_handler_receive = {
@@ -84,10 +91,10 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
 
    configASSERT( xReturned == pdPASS );
 
-   xReturned = FramePackerInit(&app_buffer_handler_receive);
+   xReturned = FramePackerInit(&app_buffer_handler_receive, uart);
    configASSERT( xReturned == pdPASS );
 
-   frame_t *frame;
+   frame_t frame;
    
    while( true ) {
       xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
