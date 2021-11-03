@@ -38,15 +38,15 @@ typedef struct {
 /*=====[Implementations of public functions]=================================*/
 
 void FrameProcessorInit(uartMap_t uart) {
-   static app_resources_t resources;
-   resources.uart = uart;
-   resources.buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
+   app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
+   resources->uart = uart;
+   resources->buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
 
    BaseType_t xReturned = xTaskCreate(
       TASK_FrameProcessor,
       (const char *)"Frame Processor",
       configMINIMAL_STACK_SIZE,
-      (void*) &resources,
+      (void*) resources,
       tskIDLE_PRIORITY + 1,
       NULL
    );
@@ -58,6 +58,7 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
    app_resources_t *resources = (app_resources_t*) taskParmPtr;
    uint8_t *memory_pool = resources->buffer;
    uartMap_t uart = resources->uart;
+   vPortFree(resources);
    static QMPool pool;
 
    static buffer_handler_t app_buffer_handler_receive = {
