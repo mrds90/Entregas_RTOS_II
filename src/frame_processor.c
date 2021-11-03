@@ -82,19 +82,10 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
    }
    configASSERT( app_buffer_handler_send.queue != NULL );
 
-   BaseType_t xReturned = xTaskCreate(
-      TASK_FramePrinter,
-      (const char *)"Print Function",
-      configMINIMAL_STACK_SIZE * 4,
-      (void *)&app_buffer_handler_send,
-      tskIDLE_PRIORITY + 1,
-      NULL
-   );
+   FramePrinterInit(&app_buffer_handler_send);
 
-   configASSERT( xReturned == pdPASS );
-
-   xReturned = FramePackerInit(&app_buffer_handler_receive, uart);
-   configASSERT( xReturned == pdPASS );
+   FramePackerInit(&app_buffer_handler_receive, uart);
+   
 
    frame_t frame;
    
