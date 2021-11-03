@@ -1,5 +1,6 @@
 /*=============================================================================
- * Author: Marcos Dominguez <mrds0690@gmail.com>
+ * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan <
+ * pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 2021/10/31
  *===========================================================================*/
 
