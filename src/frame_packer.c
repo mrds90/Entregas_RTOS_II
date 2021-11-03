@@ -28,7 +28,12 @@
 #define CHARACTER_BEFORE_DATA_SIZE 		((CHARACTER_SIZE_ID) * sizeof(uint8_t))
 /*=====[ Definitions of private data types ]===================================*/
 
-
+typedef struct {
+	buffer_handler_t buffer_handler;
+	frame_t raw_frame;
+	uint8_t frame_active;
+	uint8_t buff_ind;
+} frame_capture_t;
 /*=====[Definitions of private variables]=============================*/
 
 
@@ -90,19 +95,21 @@ void TASK_FramePrinter(void* taskParmPtr) {
 /*=====[Implementations of private functions]================================*/
 
 static void TASK_FramePacker(void* taskParmPtr) {
-	
-	static buffer_handler_t buffer_handler_isr;
 	frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t*) taskParmPtr;
-
+	frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
+	configASSERT(frame_capture != NULL);
+	
     buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
 	uartMap_t uart = frame_packer_resources->uart;
 	vPortFree(frame_packer_resources);
+	frame_capture->buff_ind = 0;
+	frame_capture->frame_active = 0;
+    frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+	configASSERT(frame_capture->buffer_handler.queue != NULL);
 
-    buffer_handler_isr.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-	configASSERT(buffer_handler_isr.queue != NULL);
+	frame_capture->buffer_handler.pool = buffer_handler_app->pool;
 
-	buffer_handler_isr.pool = buffer_handler_app->pool;
-	UART_RX_Init(UART_RX_ISRFunction, (void*) &buffer_handler_isr, uart);
+	UART_RX_Init(UART_RX_ISRFunction, (void*) frame_capture, uart);
 
 	frame_t raw_frame;
 	frame_t frame_app;
@@ -113,7 +120,7 @@ static void TASK_FramePacker(void* taskParmPtr) {
 
 		switch (state) {
 			case FRAME_WAITING:
-				xQueueReceive(buffer_handler_isr.queue, &raw_frame, portMAX_DELAY);
+				xQueueReceive(frame_capture->buffer_handler.queue, &raw_frame, portMAX_DELAY);
 							// Separar aca los campos ID, C+DATA y CRC del paquete recibido
 							// Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
 				state = FRAME_CRC_CHECK;
@@ -135,7 +142,7 @@ static void TASK_FramePacker(void* taskParmPtr) {
 				else {
 					state = FRAME_WAITING;
 					portENTER_CRITICAL(); 
-					QMPool_put(buffer_handler_isr.pool, raw_frame.data);
+					QMPool_put(frame_capture->buffer_handler.pool, raw_frame.data);
 					portEXIT_CRITICAL(); 
 					raw_frame.data = NULL;
 				}
@@ -162,42 +169,41 @@ static void UART_RX_Init( void *UARTCallBackFunc, void *parameter, uartMap_t uar
 /*=====[Implementations of interrupt functions]==============================*/
 
 static void UART_RX_ISRFunction( void *parameter ) {
-	static uint8_t frame_active = 0;
-	static frame_t raw_frame;
-	static char RxBuff[MAX_BUFFER_SIZE] = {0};
-	static uint8_t buff_ind = 0;
+	
+	frame_capture_t *frame_capture = (frame_capture_t *) parameter;
+	frame_capture->frame_active;
+	frame_capture->buff_ind;
 	BaseType_t px_higher_priority_task_woken = pdFALSE;
-	buffer_handler_t* buffer_handler = (buffer_handler_t*) parameter;
 		
 	char character;
 	character = uartRxRead(UART_USB);
 
 	if (character == START_OF_MESSAGE) {
-		if(frame_active == 0) {
-			raw_frame.data = (uint8_t*) QMPool_get(buffer_handler->pool,0);
+		if(frame_capture->frame_active == 0) {
+			frame_capture->raw_frame.data = (uint8_t*) QMPool_get(frame_capture->buffer_handler.pool,0);
 		}
-		if (raw_frame.data != NULL) {
-			buff_ind = 0;
-			frame_active = 1;
+		if (frame_capture->raw_frame.data != NULL) {
+			frame_capture->buff_ind = 0;
+			frame_capture->frame_active = 1;
 		}
 	}
-	else if ((character == END_OF_MESSAGE) && frame_active) {
-		frame_active = 0;
-		raw_frame.data_size = buff_ind - CHARACTER_SIZE_CRC;
-		if(buffer_handler->queue != NULL) {
-			xQueueSendFromISR(buffer_handler->queue, &raw_frame, &px_higher_priority_task_woken);
+	else if ((character == END_OF_MESSAGE) && frame_capture->frame_active) {
+		frame_capture->frame_active = 0;
+		frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
+		if(frame_capture->buffer_handler.queue != NULL) {
+			xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken);
 			if (px_higher_priority_task_woken == pdTRUE) {
 				portYIELD_FROM_ISR(px_higher_priority_task_woken);
 			}
 		}
 	}
-	else if (buff_ind >= MAX_BUFFER_SIZE) {
-		buff_ind = 0;
-		frame_active = 0;
-		QMPool_put(buffer_handler->pool, (void*) raw_frame.data);
+	else if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
+		frame_capture->buff_ind = 0;
+		frame_capture->frame_active = 0;
+		QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
 	}
-	else if (frame_active) {
-		raw_frame.data[buff_ind++] = character;
+	else if (frame_capture->frame_active) {
+		frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
 	}
 }
 
