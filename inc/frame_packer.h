@@ -26,12 +26,6 @@ extern "C" {
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
- * @brief Initialize the frame packer printer
- * 
- * @param app_buffer_handler_send 
- */
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send);
-/**
  * @brief Initialize the frame packer receiver
  * 
  * @param app_buffer_handler_receive 

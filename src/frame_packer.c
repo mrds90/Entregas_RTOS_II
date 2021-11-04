@@ -47,11 +47,19 @@ typedef struct {
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
+ * @brief Initialize the frame packer printer
+ * 
+ * @param packer_resources 
+ */
+void FRAME_PACKER_PrinterInit(frame_packer_resources_t *packer_resources);
+
+/**
  * @brief Create a frame ready to be printed
  * 
  * @param taskParmPtr 
  */
 static void FRAME_PACKER_PrinterTask(void* taskParmPtr);
+
 /**
  * @brief Create a frame ready to be processed
  * 
@@ -78,12 +86,12 @@ void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler, uartM
     configASSERT(xReturned == pdPASS);
 }
 
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *packer_buffer_handler) {
+void FRAME_PACKER_PrinterInit(frame_packer_resources_t *packer_resources) {
     BaseType_t xReturned = xTaskCreate(
         FRAME_PACKER_PrinterTask,
         (const char *)"Print Function",
         configMINIMAL_STACK_SIZE * 4,
-        (void *)packer_buffer_handler,
+        (void *)packer_resources,
         tskIDLE_PRIORITY + 1,
         NULL
     );
@@ -108,14 +116,19 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 		.pool = buffer_handler_app->pool,
         .queue_receive = NULL,
         .queue_send = NULL,
-    };   
+    }; 	
 
+	frame_packer_resources_t print_resources = {
+		.buffer_handler = &packer_buffer_handler,
+		.uart = uart,
+	};
+  
     if ( packer_buffer_handler.queue_send == NULL ) {
         packer_buffer_handler.queue_send = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
     }
     configASSERT( packer_buffer_handler.queue_send != NULL ); 
 
-	FRAME_PACKER_PrinterInit(&packer_buffer_handler);  			
+	FRAME_PACKER_PrinterInit(&print_resources);  			
 
     while (1) {
         bool frame_correct = false, crc_valid = false;
@@ -172,21 +185,21 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 
 
 void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
-   frame_buffer_handler_t *packer_buffer_handler = (frame_buffer_handler_t*) taskParmPtr;
+   frame_packer_resources_t *packer_resources = (frame_packer_resources_t*) taskParmPtr;
    frame_t frame_print;
 
    // ----- Task repeat for ever -------------------------
    while(TRUE) {
       // Wait for message
-      xQueueReceive(packer_buffer_handler->queue_send, &frame_print, portMAX_DELAY);
+      xQueueReceive(packer_resources->buffer_handler->queue_send, &frame_print, portMAX_DELAY);
       
-	  uartWriteByte(UART_USB, START_OF_MESSAGE);
-      uartWriteString(UART_USB, frame_print.data);
-	  uartWriteByte(UART_USB, END_OF_MESSAGE);
-      uartWriteString(UART_USB, "\n");
+	  uartWriteByte(packer_resources->uart, START_OF_MESSAGE);
+      uartWriteString(packer_resources->uart, frame_print.data);
+	  uartWriteByte(packer_resources->uart, END_OF_MESSAGE);
+      uartWriteString(packer_resources->uart, "\n");
 
       taskENTER_CRITICAL();
-      QMPool_put(packer_buffer_handler->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+      QMPool_put(packer_resources->buffer_handler->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
       taskEXIT_CRITICAL();
    }
 }
