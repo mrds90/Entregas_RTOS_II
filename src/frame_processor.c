@@ -88,7 +88,7 @@ static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
    }
    configASSERT( app_buffer_handler_send.queue != NULL );
 
-   FRAME_PACKER_PrinterInit(&app_buffer_handler_send);
+   FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
 
    FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
    

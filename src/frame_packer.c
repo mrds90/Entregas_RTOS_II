@@ -77,12 +77,17 @@ void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receiv
     configASSERT(xReturned == pdPASS);
 }
 
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send) {
+void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
+    frame_packer_resources_t *printer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
+    configASSERT(printer_resources != NULL);
+    printer_resources->uart = uart;
+    printer_resources->buffer_handler = app_buffer_handler_send;
+
     BaseType_t xReturned = xTaskCreate(
         FRAME_PACKER_PrinterTask,
         (const char *)"Print Function",
         configMINIMAL_STACK_SIZE * 4,
-        (void *)app_buffer_handler_send,
+        (void *)printer_resources,
         tskIDLE_PRIORITY + 1,
         NULL
     );
@@ -98,7 +103,6 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
     uartMap_t uart = frame_packer_resources->uart;
     frame_capture_t *frame_capture = FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
     vPortFree(frame_packer_resources);
-
 
     frame_t raw_frame;
     frame_t frame_app;
@@ -150,21 +154,30 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 
 
 void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
-   frame_buffer_handler_t *buffer_handler_print = (frame_buffer_handler_t*) taskParmPtr;
-   frame_t frame_print;
+    frame_packer_resources_t *printer_resources = (frame_packer_resources_t*) taskParmPtr;
+    frame_buffer_handler_t* buffer_handler_print = printer_resources->buffer_handler;
+    uartMap_t uart = printer_resources->uart;
+    vPortFree(printer_resources);
 
-   // ----- Task repeat for ever -------------------------
-   while(TRUE) {
-      // Wait for message
-      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-      // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
-      uartWriteString(UART_USB, frame_print.data);
-      uartWriteString(UART_USB, "\n");
+    frame_t frame_print;
 
-      taskENTER_CRITICAL();
-      QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
-      taskEXIT_CRITICAL();
-   }
+	// ----- Task repeat for ever -------------------------
+	while(TRUE) {
+        // Wait for message
+        xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
+        // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
+
+        uartWriteByte(uart, START_OF_MESSAGE);
+        uartWriteString(uart, "0001");              // ID
+        uartWriteString(uart, frame_print.data);    // DATA
+        uartWriteString(uart, "1B");                // CRC
+        uartWriteByte(uart, END_OF_MESSAGE);
+        uartWriteString(uart, "\n");
+
+        taskENTER_CRITICAL();
+        QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+        taskEXIT_CRITICAL();
+    }
 }
 
 

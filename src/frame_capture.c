@@ -13,8 +13,7 @@
 #include "task.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define START_OF_MESSAGE         '('
-#define END_OF_MESSAGE           ')'
+
 /*=====[ Definitions of private data types ]===================================*/
 
 /*=====[Definitions of private variables]=============================*/

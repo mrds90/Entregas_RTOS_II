@@ -29,12 +29,14 @@ extern "C" {
  * @brief Initialize the frame packer printer
  * 
  * @param app_buffer_handler_send 
+ * @param uart
  */
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send);
+void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart);
 /**
  * @brief Initialize the frame packer receiver
  * 
  * @param app_buffer_handler_receive 
+ * @param uart
  */
 void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 
