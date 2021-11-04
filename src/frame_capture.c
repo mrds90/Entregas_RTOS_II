@@ -7,13 +7,10 @@
 
 /*=====[Inclusion of own header]=============================================*/
 
+#include "FreeRTOS.h"
 #include "frame_capture.h"
 #include "string.h"
-#include "qmpool.h"
-#include "FreeRTOS.h"
-#include "queue.h"
 #include "task.h"
-#include "sapi.h"
 
 /*=====[Definition macros of private constants]==============================*/
 #define START_OF_MESSAGE 				'('

@@ -6,10 +6,10 @@
 
 /*=====[Inclusion of own header]=============================================*/
 
-#include "frame_processor.h"
 #include "FreeRTOS.h"
-#include "queue.h"
-#include "qmpool.h"
+#include "task.h"
+
+#include "frame_processor.h"
 #include "frame_packer.h"
 
  

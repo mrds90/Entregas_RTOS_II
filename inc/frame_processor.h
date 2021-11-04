@@ -10,11 +10,7 @@
 #define __FRAME_PROCESSOR_H__
 
 /*=====[Inclusions of public function dependencies]==========================*/
-
-#include "FreeRTOS.h"
-#include "task.h"
 #include "sapi.h"
-
 
 /*=====[C++ - begin]=========================================================*/
 

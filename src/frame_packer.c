@@ -6,14 +6,13 @@
  *===========================================================================*/
 
 /*=====[Inclusion of own header]=============================================*/
-#include "frame_capture.h"
-#include "frame_packer.h"
-#include "string.h"
-#include "qmpool.h"
 #include "FreeRTOS.h"
-#include "queue.h"
 #include "task.h"
-#include "sapi.h"
+
+#include "frame_packer.h"
+#include "frame_capture.h"
+
+#include "string.h"
 
 /*=====[Definition macros of private constants]==============================*/
 #define CHARACTER_INDEX_ID 				0

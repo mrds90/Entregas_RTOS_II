@@ -12,12 +12,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 
 /*=====[Inclusions of public function dependencies]==========================*/
 
-#include "sapi.h"
-#include "qmpool.h"
-#include "FreeRTOS.h"
-#include "queue.h"
 #include "frame_class.h"
-
 
 /*=====[C++ - begin]=========================================================*/
 
@@ -57,4 +52,4 @@ void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
 /*=====[Avoid multiple inclusion - end]======================================*/
 
-#endif /* __FRAME_PACKER_H__ */
+#endif /* __FRAME_CAPTURE_H__ */

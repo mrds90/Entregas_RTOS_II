@@ -9,10 +9,11 @@
 #include "FreeRTOS.h"
 #include "FreeRTOSConfig.h"
 #include "task.h"
-#include "sapi.h"
+
 #include "frame_processor.h"
 
 /*=====[Definition macros of private constants]==============================*/
+
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
@@ -26,8 +27,6 @@
 /*=====[Prototypes (declarations) of private functions]======================*/
 
 /*=====[Implementations of public functions]=================================*/
-
-
 
 int main( void )
 {

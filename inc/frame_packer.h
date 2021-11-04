@@ -12,10 +12,6 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 
 /*=====[Inclusions of public function dependencies]==========================*/
 
-#include "sapi.h"
-#include "qmpool.h"
-#include "FreeRTOS.h"
-#include "queue.h"
 #include "frame_class.h"
 
 /*=====[C++ - begin]=========================================================*/
