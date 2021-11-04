@@ -160,7 +160,6 @@ void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
       // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
       uartWriteString(UART_USB, frame_print.data);
       uartWriteString(UART_USB, "\n");
-      //printf("%s\n", frame_print.id);
 
       taskENTER_CRITICAL();
       QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);

@@ -44,8 +44,10 @@ static void FRAME_PROCESSOR_Task( void* taskParmPtr );
 
 void FRAME_PROCESSOR_Init(uartMap_t uart) {
    app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
+   configASSERT(resources != NULL);
    resources->uart = uart;
    resources->buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
+   configASSERT(resources->buffer != NULL);
 
    BaseType_t xReturned = xTaskCreate(
       FRAME_PROCESSOR_Task,

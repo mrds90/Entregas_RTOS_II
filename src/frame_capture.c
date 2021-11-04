@@ -39,6 +39,7 @@ static void FRAME_CAPTURE_UartRxISR(void *parameter);
 
 void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
+    configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
     frame_capture->frame_active = 0;
     frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
