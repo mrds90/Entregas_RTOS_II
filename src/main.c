@@ -31,12 +31,10 @@
 
 int main( void )
 {
-   /* Inicializar la placa */
    boardConfig();
 
-   FrameProcessorInit(UART_USB);
-
-   /* arranco el scheduler */
+   FRAME_PROCESSOR_Init(UART_USB); //Init an instance of the frame processor on UART_USB
+   
    vTaskStartScheduler();
    return 0;
 }

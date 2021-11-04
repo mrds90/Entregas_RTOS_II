@@ -1,19 +1,22 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan <
- * pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 2021/10/31
+pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
+ * Date: 31/10/2021
+ * Version: 1.0
  *===========================================================================*/
 
 /*=====[Avoid multiple inclusion - begin]====================================*/
 
-#ifndef __FRAME_PROCESSOR_H__
-#define __FRAME_PROCESSOR_H__
+#ifndef __FRAME_CAPTURE_H__
+#define __FRAME_CAPTURE_H__
 
 /*=====[Inclusions of public function dependencies]==========================*/
 
-#include "FreeRTOS.h"
-#include "task.h"
 #include "sapi.h"
+#include "qmpool.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "frame_class.h"
 
 
 /*=====[C++ - begin]=========================================================*/
@@ -24,17 +27,25 @@ extern "C" {
 
 /*=====[Definition macros of public constants]===============================*/
 
-/*=====[Public function-like macros]=========================================*/
+/*=====[ Definitions of public data types ]==================================*/
 
-/*=====[Definitions of public data types]====================================*/
+
+typedef struct {
+	frame_buffer_handler_t buffer_handler;
+	frame_t raw_frame;
+	uint8_t frame_active;
+	uint8_t buff_ind;
+} frame_capture_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
- * @brief Initialize the frame processor
+ * @brief Initializes the frame capture
  * 
- * @param uart 
+ * @param frame_capture_t* 
+ * @param frame_buffer_handler_t* 
  */
-void FRAME_PROCESSOR_Init(uartMap_t uart);
+void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
+
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
@@ -46,4 +57,4 @@ void FRAME_PROCESSOR_Init(uartMap_t uart);
 
 /*=====[Avoid multiple inclusion - end]======================================*/
 
-#endif /* __FRAME_PROCESSOR_H__ */
+#endif /* __FRAME_PACKER_H__ */
