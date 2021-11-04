@@ -6,7 +6,7 @@
  *===========================================================================*/
 
 /*=====[Inclusion of own header]=============================================*/
-
+#include "frame_capture.h"
 #include "frame_packer.h"
 #include "string.h"
 #include "qmpool.h"
@@ -16,55 +16,61 @@
 #include "sapi.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define START_OF_MESSAGE 				'('
-#define END_OF_MESSAGE 					')'
 #define CHARACTER_INDEX_ID 				0
 #define CHARACTER_SIZE_ID				4
 #define CHARACTER_INDEX_CMD 			(CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
 #define CHARACTER_SIZE_CMD				1
 #define CHARACTER_INDEX_DATA 			(CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_SIZE_CRC				2
-#define QUEUE_SIZE						5
+
 #define CHARACTER_BEFORE_DATA_SIZE 		((CHARACTER_SIZE_ID) * sizeof(uint8_t))
 /*=====[ Definitions of private data types ]===================================*/
+/**
+ * @brief States of the packer state machine
+ * 
+ */
+typedef enum {
+	FRAME_WAITING,
+	FRAME_CRC_CHECK,
+	FRAME_PROSESSING,
+	FRAME_COMPLETE,
+	FRAME_STATE_QTY
+} frame_state_t;
 
+/**
+ * @brief Resourse used to store the frame to be packed
+ * 
+ */
 typedef struct {
-	buffer_handler_t buffer_handler;
-	frame_t raw_frame;
-	uint8_t frame_active;
-	uint8_t buff_ind;
-} frame_capture_t;
-/*=====[Definitions of private variables]=============================*/
+	frame_buffer_handler_t *buffer_handler;
+	uartMap_t uart;
+} frame_packer_resources_t;
 
+/*=====[Definitions of private variables]=============================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
- * @brief Initializes the UART
+ * @brief Create a frame ready to be printed
  * 
- * @param UARTCallBackFunc 
- * @param parameter 
+ * @param taskParmPtr 
  */
-static void UART_RX_Init( void *UARTCallBackFunc, void *parameter, uartMap_t uart);
-
+static void FRAME_PACKER_PrinterTask(void* taskParmPtr);
 /**
- * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
+ * @brief Create a frame ready to be processed
  * 
- * @param parameter buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
+ * @param taskParmPtr 
  */
-static void UART_RX_ISRFunction(void *parameter);
+static void FRAME_PACKER_ReceiverTask(void* taskParmPtr);
 
-static void TASK_FramePrinter(void* taskParmPtr);
-static void TASK_FramePacker(void* taskParmPtr);
-static void *FrameCaptureObjInit(QMPool *pool);
 /*=====[Implementations of public functions]=================================*/
 
-void FramePackerInit(buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
+void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
 	frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
 	configASSERT(frame_packer_resources != NULL);
 	frame_packer_resources->uart = uart;
 	frame_packer_resources->buffer_handler = app_buffer_handler_receive;
 	BaseType_t xReturned = xTaskCreate(
-		TASK_FramePacker,
+		FRAME_PACKER_ReceiverTask,
 		(const char *)"Frame Packer",
 		configMINIMAL_STACK_SIZE * 5,
 		(void *)frame_packer_resources,
@@ -74,9 +80,9 @@ void FramePackerInit(buffer_handler_t *app_buffer_handler_receive, uartMap_t uar
 	configASSERT(xReturned == pdPASS);
 }
 
-void FramePrinterInit(buffer_handler_t *app_buffer_handler_send) {
+void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send) {
 	BaseType_t xReturned = xTaskCreate(
-		TASK_FramePrinter,
+		FRAME_PACKER_PrinterTask,
 		(const char *)"Print Function",
 		configMINIMAL_STACK_SIZE * 4,
 		(void *)app_buffer_handler_send,
@@ -87,34 +93,15 @@ void FramePrinterInit(buffer_handler_t *app_buffer_handler_send) {
    configASSERT( xReturned == pdPASS );
 }
 
-void TASK_FramePrinter(void* taskParmPtr) {
-   buffer_handler_t *buffer_handler_print = (buffer_handler_t*) taskParmPtr;
-   frame_t frame_print;
-
-   // ----- Task repeat for ever -------------------------
-   while(TRUE) {
-      // Wait for message
-      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-	  // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
-	  uartWriteString(UART_USB, frame_print.data);
-	  uartWriteString(UART_USB, "\n");
-	  //printf("%s\n", frame_print.id);
-
-	  taskENTER_CRITICAL();
-	  QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
-	  taskEXIT_CRITICAL();
-   }
-}
 /*=====[Implementations of private functions]================================*/
 
-static void TASK_FramePacker(void* taskParmPtr) {
+static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 	frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t*) taskParmPtr;
-	buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
+	frame_buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
 	uartMap_t uart = frame_packer_resources->uart;
-	frame_capture_t *frame_capture = FrameCaptureObjInit(buffer_handler_app->pool);
+	frame_capture_t *frame_capture = FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
 	vPortFree(frame_packer_resources);
 
-	UART_RX_Init(UART_RX_ISRFunction, (void*) frame_capture, uart);
 
 	frame_t raw_frame;
 	frame_t frame_app;
@@ -164,60 +151,24 @@ static void TASK_FramePacker(void* taskParmPtr) {
 	}
 }
 
-static void UART_RX_Init( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
-   uartConfig(uart, 115200);
-   uartCallbackSet(uart, UART_RECEIVE, UARTCallBackFunc, parameter);
-   uartInterrupt(uart, true);
-}
 
-static void *FrameCaptureObjInit(QMPool *pool) {
-	frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
-	frame_capture->buff_ind = 0;
-	frame_capture->frame_active = 0;
-    frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-	configASSERT(frame_capture->buffer_handler.queue != NULL);
-	frame_capture->buffer_handler.pool = pool;
-	
-	return (void *) frame_capture;
-}
-/*=====[Implementations of interrupt functions]==============================*/
+void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
+   frame_buffer_handler_t *buffer_handler_print = (frame_buffer_handler_t*) taskParmPtr;
+   frame_t frame_print;
 
-static void UART_RX_ISRFunction( void *parameter ) {
-	
-	frame_capture_t *frame_capture = (frame_capture_t *) parameter;
-	frame_capture->frame_active;
-	frame_capture->buff_ind;
-	BaseType_t px_higher_priority_task_woken = pdFALSE;
-		
-	uint8_t character = uartRxRead(UART_USB);
+   // ----- Task repeat for ever -------------------------
+   while(TRUE) {
+      // Wait for message
+      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
+	  // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
+	  uartWriteString(UART_USB, frame_print.data);
+	  uartWriteString(UART_USB, "\n");
+	  //printf("%s\n", frame_print.id);
 
-	if (character == START_OF_MESSAGE) {
-		if(frame_capture->frame_active == 0) {
-			frame_capture->raw_frame.data = (uint8_t*) QMPool_get(frame_capture->buffer_handler.pool,0);
-		}
-		if (frame_capture->raw_frame.data != NULL) {
-			frame_capture->buff_ind = 0;
-			frame_capture->frame_active = 1;
-		}
-	}
-	else if ((character == END_OF_MESSAGE) && frame_capture->frame_active) {
-		frame_capture->frame_active = 0;
-		frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
-		if(frame_capture->buffer_handler.queue != NULL) {
-			xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken);
-			if (px_higher_priority_task_woken == pdTRUE) {
-				portYIELD_FROM_ISR(px_higher_priority_task_woken);
-			}
-		}
-	}
-	else if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
-		frame_capture->buff_ind = 0;
-		frame_capture->frame_active = 0;
-		QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
-	}
-	else if (frame_capture->frame_active) {
-		frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
-	}
+	  taskENTER_CRITICAL();
+	  QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+	  taskEXIT_CRITICAL();
+   }
 }
 
 

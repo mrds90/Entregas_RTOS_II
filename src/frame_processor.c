@@ -34,16 +34,21 @@ typedef struct {
 /*=====[Definitions of private global variables]=============================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
-
+/**
+ * @brief Task that process the received data, validate the frame and send formated data to the printer.
+ * 
+ * @param taskParmPtr 
+ */
+static void FRAME_PROCESSOR_Task( void* taskParmPtr ); 
 /*=====[Implementations of public functions]=================================*/
 
-void FrameProcessorInit(uartMap_t uart) {
+void FRAME_PROCESSOR_Init(uartMap_t uart) {
    app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
    resources->uart = uart;
    resources->buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
 
    BaseType_t xReturned = xTaskCreate(
-      TASK_FrameProcessor,
+      FRAME_PROCESSOR_Task,
       (const char *)"Frame Processor",
       configMINIMAL_STACK_SIZE,
       (void*) resources,
@@ -53,20 +58,19 @@ void FrameProcessorInit(uartMap_t uart) {
    configASSERT(xReturned == pdPASS);
 }
 
-// Task implementation
-void TASK_FrameProcessor( void* taskParmPtr ) {
+static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
    app_resources_t *resources = (app_resources_t*) taskParmPtr;
    uint8_t *memory_pool = resources->buffer;
    uartMap_t uart = resources->uart;
    vPortFree(resources);
-   static QMPool pool;
+   QMPool pool;
 
-   static buffer_handler_t app_buffer_handler_receive = {
+   frame_buffer_handler_t app_buffer_handler_receive = {
       .queue = NULL,
       .pool = &pool,
    };
 
-   static buffer_handler_t app_buffer_handler_send = {
+   frame_buffer_handler_t app_buffer_handler_send = {
       .queue = NULL,
       .pool = &pool,
    };
@@ -82,11 +86,10 @@ void TASK_FrameProcessor( void* taskParmPtr ) {
    }
    configASSERT( app_buffer_handler_send.queue != NULL );
 
-   FramePrinterInit(&app_buffer_handler_send);
+   FRAME_PACKER_PrinterInit(&app_buffer_handler_send);
 
-   FramePackerInit(&app_buffer_handler_receive, uart);
+   FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
    
-
    frame_t frame;
    
    while( true ) {

@@ -16,6 +16,7 @@ pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
 #include "qmpool.h"
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "frame_class.h"
 
 /*=====[C++ - begin]=========================================================*/
 
@@ -24,35 +25,22 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
-#define MAX_BUFFER_SIZE				200
 
 /*=====[ Definitions of public data types ]==================================*/
 
-typedef enum {
-	FRAME_WAITING,
-	FRAME_CRC_CHECK,
-	FRAME_PROSESSING,
-	FRAME_COMPLETE,
-	FRAME_STATE_QTY
-} frame_state_t;
-
-typedef struct {
-	uint8_t *data;
-	uint8_t data_size;
-} frame_t;
-
-typedef struct {
-	QMPool *pool;
-	QueueHandle_t queue;
-} buffer_handler_t;
-
-typedef struct {
-	buffer_handler_t *buffer_handler;
-	uartMap_t uart;
-} frame_packer_resources_t;
 /*=====[Prototypes (declarations) of public functions]=======================*/
-void FramePrinterInit(buffer_handler_t *app_buffer_handler_send);
-void FramePackerInit(buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
+/**
+ * @brief Initialize the frame packer printer
+ * 
+ * @param app_buffer_handler_send 
+ */
+void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send);
+/**
+ * @brief Initialize the frame packer receiver
+ * 
+ * @param app_buffer_handler_receive 
+ */
+void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
