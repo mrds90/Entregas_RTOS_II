@@ -26,10 +26,10 @@ extern "C" {
 
 
 typedef struct {
-	frame_buffer_handler_t buffer_handler;
-	frame_t raw_frame;
-	uint8_t frame_active;
-	uint8_t buff_ind;
+    frame_buffer_handler_t buffer_handler;
+    frame_t raw_frame;
+    uint8_t frame_active;
+    uint8_t buff_ind;
 } frame_capture_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/

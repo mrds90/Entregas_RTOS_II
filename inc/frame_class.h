@@ -23,17 +23,19 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
-#define MAX_BUFFER_SIZE				200
+#define MAX_BUFFER_SIZE                200
+#define CHARACTER_SIZE_CRC       2
+#define QUEUE_SIZE               7
 /*=====[ Definitions of public data types ]==================================*/
 
 typedef struct {
-	uint8_t *data;
-	uint8_t data_size;
+    uint8_t *data;
+    uint8_t data_size;
 } frame_t;
 
 typedef struct {
-	QMPool *pool;
-	QueueHandle_t queue;
+    QMPool *pool;
+    QueueHandle_t queue;
 } frame_buffer_handler_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/

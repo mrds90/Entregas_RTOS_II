@@ -19,7 +19,6 @@
 #define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
 #define POOL_PACKET_COUNT     (5)
 #define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT)
-#define QUEUE_SIZE            10
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
