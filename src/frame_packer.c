@@ -29,7 +29,7 @@
 typedef enum {
     FRAME_WAITING,
     FRAME_CRC_CHECK,
-    FRAME_PROSESSING,
+    FRAME_PROSESSING_WAITING,
     FRAME_COMPLETE,
     FRAME_STATE_QTY
 } frame_state_t;
@@ -61,11 +61,12 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr);
 
 /*=====[Implementations of public functions]=================================*/
 
-void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
+void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler, uartMap_t uart) {
     frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
     configASSERT(frame_packer_resources != NULL);
     frame_packer_resources->uart = uart;
-    frame_packer_resources->buffer_handler = app_buffer_handler_receive;
+    frame_packer_resources->buffer_handler = app_buffer_handler;
+
     BaseType_t xReturned = xTaskCreate(
         FRAME_PACKER_ReceiverTask,
         (const char *)"Frame Packer",
@@ -77,12 +78,12 @@ void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receiv
     configASSERT(xReturned == pdPASS);
 }
 
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send) {
+void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *packer_buffer_handler) {
     BaseType_t xReturned = xTaskCreate(
         FRAME_PACKER_PrinterTask,
         (const char *)"Print Function",
         configMINIMAL_STACK_SIZE * 4,
-        (void *)app_buffer_handler_send,
+        (void *)packer_buffer_handler,
         tskIDLE_PRIORITY + 1,
         NULL
     );
@@ -99,33 +100,53 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
     frame_capture_t *frame_capture = FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
     vPortFree(frame_packer_resources);
 
-
     frame_t raw_frame;
     frame_t frame_app;
     frame_state_t state = FRAME_WAITING;
 
+	frame_buffer_handler_t packer_buffer_handler = {
+		.pool = buffer_handler_app->pool,
+        .queue_receive = NULL,
+        .queue_send = NULL,
+    };   
+
+    if ( packer_buffer_handler.queue_send == NULL ) {
+        packer_buffer_handler.queue_send = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+    }
+    configASSERT( packer_buffer_handler.queue_send != NULL ); 
+
+	FRAME_PACKER_PrinterInit(&packer_buffer_handler);  			
+
     while (1) {
-        uint8_t frame_correct = 0;
+        bool frame_correct = false, crc_valid = false;
 
         switch (state) {
             case FRAME_WAITING:
-                xQueueReceive(frame_capture->buffer_handler.queue, &raw_frame, portMAX_DELAY);
+                xQueueReceive(frame_capture->buffer_handler.queue_send, &raw_frame, portMAX_DELAY);
                 // Separar aca los campos ID, C+DATA y CRC del paquete recibido
                 // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
                 state = FRAME_CRC_CHECK;
                 break;
             case FRAME_CRC_CHECK:
-                // CHECK CRC
-                // Si el CRC es valido, enviar C+DATA a la capa C3
-                state = FRAME_PROSESSING;
+                // TODO: CHECK CRC
+                crc_valid = true;
+				
+				// Si el CRC es valido, enviar C+DATA a la capa C3
+				if(crc_valid) {
+					frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
+					frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
+					frame_app.data[frame_app.data_size] = '\0';
+					xQueueSend(buffer_handler_app->queue_receive, &frame_app, portMAX_DELAY);	
+				}
+                state = FRAME_PROSESSING_WAITING;
                 break;
-            case FRAME_PROSESSING:
-                // PROCESS FRAME
-                //TODO: Routine that validate the frame
-                frame_correct = 1;
+            case FRAME_PROSESSING_WAITING:
+				// Se espera a que la aplicacion procese los datos
+				xQueueReceive(buffer_handler_app->queue_send, &frame_app, portMAX_DELAY);
+				if(frame_app.data_size > 0)
+                	frame_correct = true;
                 if(frame_correct) {
-                    frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
-                    frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
+                    // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
                     state = FRAME_COMPLETE;
                 }
                 else {
@@ -138,7 +159,8 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
                 break;
             case FRAME_COMPLETE:
                 frame_app.data[frame_app.data_size] = '\0';
-                xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
+				// Se envia el paquete para imprimir
+                xQueueSend(packer_buffer_handler.queue_send, &frame_app, portMAX_DELAY);
                 state = FRAME_WAITING;
                 break;
             default:
@@ -150,19 +172,21 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 
 
 void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
-   frame_buffer_handler_t *buffer_handler_print = (frame_buffer_handler_t*) taskParmPtr;
+   frame_buffer_handler_t *packer_buffer_handler = (frame_buffer_handler_t*) taskParmPtr;
    frame_t frame_print;
 
    // ----- Task repeat for ever -------------------------
    while(TRUE) {
       // Wait for message
-      xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-      // snprintf(frame_print.id, frame_print.data_size + 1, "%s%s%s", frame_print.id, frame_print.cmd, frame_print.data); 
+      xQueueReceive(packer_buffer_handler->queue_send, &frame_print, portMAX_DELAY);
+      
+	  uartWriteByte(UART_USB, START_OF_MESSAGE);
       uartWriteString(UART_USB, frame_print.data);
+	  uartWriteByte(UART_USB, END_OF_MESSAGE);
       uartWriteString(UART_USB, "\n");
 
       taskENTER_CRITICAL();
-      QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+      QMPool_put(packer_buffer_handler->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
       taskEXIT_CRITICAL();
    }
 }

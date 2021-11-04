@@ -21,6 +21,8 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
+#define START_OF_MESSAGE         '('
+#define END_OF_MESSAGE           ')'
 
 /*=====[ Definitions of public data types ]==================================*/
 

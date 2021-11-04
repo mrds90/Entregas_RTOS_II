@@ -61,45 +61,40 @@ void FRAME_PROCESSOR_Init(uartMap_t uart) {
 }
 
 static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
-   app_resources_t *resources = (app_resources_t*) taskParmPtr;
-   uint8_t *memory_pool = resources->buffer;
-   uartMap_t uart = resources->uart;
-   vPortFree(resources);
-   QMPool pool;
+    app_resources_t *resources = (app_resources_t*) taskParmPtr;
+    uint8_t *memory_pool = resources->buffer;
+    uartMap_t uart = resources->uart;
+    vPortFree(resources);
+    QMPool pool;
 
-   frame_buffer_handler_t app_buffer_handler_receive = {
-      .queue = NULL,
-      .pool = &pool,
-   };
+    frame_buffer_handler_t app_buffer_handler = {
+        .pool = &pool,
+        .queue_receive = NULL,
+        .queue_send = NULL,
+    };
 
-   frame_buffer_handler_t app_buffer_handler_send = {
-      .queue = NULL,
-      .pool = &pool,
-   };
+    QMPool_init( &pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
+    if ( app_buffer_handler.queue_receive == NULL ) {
+        app_buffer_handler.queue_receive = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+    }
+    configASSERT( app_buffer_handler.queue_receive != NULL );
 
-   QMPool_init( &pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
-   if ( app_buffer_handler_receive.queue == NULL ) {
-      app_buffer_handler_receive.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-   }
-   configASSERT( app_buffer_handler_receive.queue != NULL );
+    if ( app_buffer_handler.queue_send == NULL ) {
+        app_buffer_handler.queue_send = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+    }
+    configASSERT( app_buffer_handler.queue_send != NULL );
 
-   if ( app_buffer_handler_send.queue == NULL ) {
-      app_buffer_handler_send.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-   }
-   configASSERT( app_buffer_handler_send.queue != NULL );
+    FRAME_PACKER_ReceiverInit(&app_buffer_handler, uart);   
 
-   FRAME_PACKER_PrinterInit(&app_buffer_handler_send);
-
-   FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
+    frame_t frame;
    
-   frame_t frame;
-   
-   while( true ) {
-      xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
-      // Do something with the frame
+    while( true ) {
+        xQueueReceive(app_buffer_handler.queue_receive, &frame, portMAX_DELAY);
+        //TODO: Routine that validate the frame
+        // Do something with the frame
 
-      xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
-   }
+        xQueueSend(app_buffer_handler.queue_send, &frame, portMAX_DELAY);
+    }
 
 }
 

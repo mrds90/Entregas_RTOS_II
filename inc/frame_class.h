@@ -35,7 +35,8 @@ typedef struct {
 
 typedef struct {
     QMPool *pool;
-    QueueHandle_t queue;
+    QueueHandle_t queue_receive;
+    QueueHandle_t queue_send;
 } frame_buffer_handler_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/

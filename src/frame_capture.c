@@ -13,8 +13,7 @@
 #include "task.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define START_OF_MESSAGE         '('
-#define END_OF_MESSAGE           ')'
+
 /*=====[ Definitions of private data types ]===================================*/
 
 /*=====[Definitions of private variables]=============================*/
@@ -42,8 +41,8 @@ void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
     frame_capture->frame_active = 0;
-    frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
-    configASSERT(frame_capture->buffer_handler.queue != NULL);
+    frame_capture->buffer_handler.queue_send = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+    configASSERT(frame_capture->buffer_handler.queue_send != NULL);
     frame_capture->buffer_handler.pool = pool;
     FRAME_CAPTURE_UartRxInit(FRAME_CAPTURE_UartRxISR, (void*) frame_capture, uart);
     return (void *) frame_capture;
@@ -51,7 +50,7 @@ void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
 
 /*=====[Implementations of private functions]================================*/
 
-static void FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
+static void FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {
    uartConfig(uart, 115200);
    uartCallbackSet(uart, UART_RECEIVE, UARTCallBackFunc, parameter);
    uartInterrupt(uart, true);
@@ -80,8 +79,8 @@ static void FRAME_CAPTURE_UartRxISR( void *parameter ) {
     else if ((character == END_OF_MESSAGE) && frame_capture->frame_active) {
         frame_capture->frame_active = 0;
         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
-        if(frame_capture->buffer_handler.queue != NULL) {
-            xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken);
+        if(frame_capture->buffer_handler.queue_send != NULL) {
+            xQueueSendFromISR(frame_capture->buffer_handler.queue_send, &frame_capture->raw_frame, &px_higher_priority_task_woken);
             if (px_higher_priority_task_woken == pdTRUE) {
                 portYIELD_FROM_ISR(px_higher_priority_task_woken);
             }
