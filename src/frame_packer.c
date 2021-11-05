@@ -169,10 +169,10 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
         // Wait for message
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
         // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-        // Enviar el paquete a la capa de transmision C1
         snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%s",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), FAKE_CRC);
+        // Enviar el paquete a la capa de transmision C1
         uartWriteByte(uart, START_OF_MESSAGE);
-        uartWriteString(uart, frame_print.data);    // DATA
+        uartWriteString(uart, frame_print.data);    // Print the frame
         uartWriteByte(uart, END_OF_MESSAGE);
         uartWriteString(uart, "\n");
 
