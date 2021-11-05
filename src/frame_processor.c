@@ -1,7 +1,7 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 2021/10/31
+ * Date: 31/10/2021
  * Version: 1.0
  *===========================================================================*/
 
@@ -26,7 +26,7 @@
 /*=====[Definitions of private data types]===================================*/
 
 typedef struct {
-    uint8_t *buffer;
+    char *buffer;
     uartMap_t uart;
 } app_resources_t;
 /*=====[Definitions of external public global variables]=====================*/
@@ -41,7 +41,7 @@ typedef struct {
  * 
  * @param taskParmPtr 
  */
-static void C3_FRAME_PROCESSOR_Task( void* taskParmPtr ); 
+static void C3_FRAME_PROCESSOR_Task(void* taskParmPtr); 
 /*=====[Implementations of public functions]=================================*/
 
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
@@ -63,7 +63,7 @@ void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
 }
 /*=====[Implementations of private functions]================================*/
 
-static void C3_FRAME_PROCESSOR_Task( void* taskParmPtr ) {
+static void C3_FRAME_PROCESSOR_Task(void* taskParmPtr) {
    app_resources_t *resources = (app_resources_t*) taskParmPtr;
    uint8_t *memory_pool = resources->buffer;
    uartMap_t uart = resources->uart;
@@ -80,16 +80,17 @@ static void C3_FRAME_PROCESSOR_Task( void* taskParmPtr ) {
       .pool = &pool,
    };
 
-   QMPool_init( &pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
-   if ( app_buffer_handler_receive.queue == NULL ) {
-      app_buffer_handler_receive.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+   QMPool_init(&pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
+   
+   if (app_buffer_handler_receive.queue == NULL) {
+      app_buffer_handler_receive.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
    }
-   configASSERT( app_buffer_handler_receive.queue != NULL );
+   configASSERT(app_buffer_handler_receive.queue != NULL);
 
-   if ( app_buffer_handler_send.queue == NULL ) {
-      app_buffer_handler_send.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
+   if (app_buffer_handler_send.queue == NULL) {
+      app_buffer_handler_send.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
    }
-   configASSERT( app_buffer_handler_send.queue != NULL );
+   configASSERT(app_buffer_handler_send.queue != NULL);
 
    C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
 

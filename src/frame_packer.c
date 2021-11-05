@@ -94,7 +94,7 @@ void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send
         NULL
     );
 
-   configASSERT( xReturned == pdPASS );
+   configASSERT(xReturned == pdPASS);
 }
 
 /*=====[Implementations of private functions]================================*/
@@ -136,9 +136,9 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
                 }
                 else {
                     state = FRAME_WAITING;
-                    portENTER_CRITICAL(); 
+                    taskENTER_CRITICAL(); 
                     QMPool_put(frame_capture->buffer_handler.pool, raw_frame.data);
-                    portEXIT_CRITICAL(); 
+                    taskEXIT_CRITICAL(); 
                     raw_frame.data = NULL;
                 }
                 break;

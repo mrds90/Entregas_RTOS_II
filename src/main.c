@@ -30,7 +30,7 @@
 
 /*=====[Implementations of public functions]=================================*/
 
-int main( void )
+int main(void)
 {
    boardConfig();
 
