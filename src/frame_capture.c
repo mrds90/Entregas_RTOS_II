@@ -25,18 +25,18 @@
  * @param UARTCallBackFunc 
  * @param parameter 
  */
-static void FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart);
+static void C2_FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
  * 
  * @param parameter frame_buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
  */
-static void FRAME_CAPTURE_UartRxISR(void *parameter);
+static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
-void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
+void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
@@ -44,13 +44,13 @@ void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
-    FRAME_CAPTURE_UartRxInit(FRAME_CAPTURE_UartRxISR, (void*) frame_capture, uart);
+    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture, uart);
     return (void *) frame_capture;
 }
 
 /*=====[Implementations of private functions]================================*/
 
-static void FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
+static void C2_FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
    uartConfig(uart, 115200);
    uartCallbackSet(uart, UART_RECEIVE, UARTCallBackFunc, parameter);
    uartInterrupt(uart, true);
@@ -58,14 +58,12 @@ static void FRAME_CAPTURE_UartRxInit( void *UARTCallBackFunc, void *parameter, u
 
 /*=====[Implementations of interrupt functions]==============================*/
 
-static void FRAME_CAPTURE_UartRxISR( void *parameter ) {
+static void C2_FRAME_CAPTURE_UartRxISR( void *parameter ) {
     
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
-    frame_capture->frame_active;
-    frame_capture->buff_ind;
     BaseType_t px_higher_priority_task_woken = pdFALSE;
         
-    uint8_t character = uartRxRead(UART_USB);
+    uint8_t character = uartRxRead(UART_USB); //!< Read the character from the UART (function of layer C1)
 
     if (character == START_OF_MESSAGE) {
         if(frame_capture->frame_active == 0) {

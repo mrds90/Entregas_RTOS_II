@@ -51,23 +51,23 @@ typedef struct {
  * 
  * @param taskParmPtr 
  */
-static void FRAME_PACKER_PrinterTask(void* taskParmPtr);
+static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr);
 /**
  * @brief Create a frame ready to be processed
  * 
  * @param taskParmPtr 
  */
-static void FRAME_PACKER_ReceiverTask(void* taskParmPtr);
+static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr);
 
 /*=====[Implementations of public functions]=================================*/
 
-void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
+void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
     frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
     configASSERT(frame_packer_resources != NULL);
     frame_packer_resources->uart = uart;
     frame_packer_resources->buffer_handler = app_buffer_handler_receive;
     BaseType_t xReturned = xTaskCreate(
-        FRAME_PACKER_ReceiverTask,
+        C2_FRAME_PACKER_ReceiverTask,
         (const char *)"Frame Packer",
         configMINIMAL_STACK_SIZE * 5,
         (void *)frame_packer_resources,
@@ -77,14 +77,14 @@ void FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receiv
     configASSERT(xReturned == pdPASS);
 }
 
-void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
+void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
     frame_packer_resources_t *printer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
     configASSERT(printer_resources != NULL);
     printer_resources->uart = uart;
     printer_resources->buffer_handler = app_buffer_handler_send;
 
     BaseType_t xReturned = xTaskCreate(
-        FRAME_PACKER_PrinterTask,
+        C2_FRAME_PACKER_PrinterTask,
         (const char *)"Print Function",
         configMINIMAL_STACK_SIZE * 4,
         (void *)printer_resources,
@@ -97,11 +97,11 @@ void FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, u
 
 /*=====[Implementations of private functions]================================*/
 
-static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
+static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
     frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t*) taskParmPtr;
     frame_buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
     uartMap_t uart = frame_packer_resources->uart;
-    frame_capture_t *frame_capture = FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
+    frame_capture_t *frame_capture = C2_FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
     vPortFree(frame_packer_resources);
 
     frame_t raw_frame;
@@ -114,18 +114,18 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
         switch (state) {
             case FRAME_WAITING:
                 xQueueReceive(frame_capture->buffer_handler.queue, &raw_frame, portMAX_DELAY);
-                // Separar aca los campos ID, C+DATA y CRC del paquete recibido
                 // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
                 state = FRAME_CRC_CHECK;
                 break;
             case FRAME_CRC_CHECK:
                 // CHECK CRC
-                // Si el CRC es valido, enviar C+DATA a la capa C3
+                // Si el CRC es valido, 
                 state = FRAME_PROSESSING;
                 break;
             case FRAME_PROSESSING:
                 // PROCESS FRAME
-                //TODO: Routine that validate the frame
+                // TODO: Routine that validate the ID
+                // Separar aca los campos ID, C+DATA y CRC del paquete recibido
                 frame_correct = 1;
                 if(frame_correct) {
                     frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
@@ -141,6 +141,7 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
                 }
                 break;
             case FRAME_COMPLETE:
+                // enviar C+DATA a la capa C3
                 frame_app.data[frame_app.data_size] = '\0';
                 xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
                 state = FRAME_WAITING;
@@ -153,7 +154,7 @@ static void FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 }
 
 
-void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
+static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
     frame_packer_resources_t *printer_resources = (frame_packer_resources_t*) taskParmPtr;
     frame_buffer_handler_t* buffer_handler_print = printer_resources->buffer_handler;
     uartMap_t uart = printer_resources->uart;
@@ -166,16 +167,17 @@ void FRAME_PACKER_PrinterTask(void* taskParmPtr) {
         // Wait for message
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
         // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-
+        // Enviar el paquete a la capa de transmision C1
+        snprintf(frame_print.data, frame_print.data_size, "%s", frame_print.data - CHARACTER_SIZE_ID * sizeof(char));
         uartWriteByte(uart, START_OF_MESSAGE);
-        uartWriteString(uart, "0001");              // ID
+        // uartWriteString(uart, "0001");              // ID
         uartWriteString(uart, frame_print.data);    // DATA
         uartWriteString(uart, "1B");                // CRC
         uartWriteByte(uart, END_OF_MESSAGE);
         uartWriteString(uart, "\n");
 
         taskENTER_CRITICAL();
-        QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE);
+        QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE); //< Free the memory
         taskEXIT_CRITICAL();
     }
 }

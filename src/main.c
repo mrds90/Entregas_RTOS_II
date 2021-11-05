@@ -34,7 +34,7 @@ int main( void )
 {
    boardConfig();
 
-   FRAME_PROCESSOR_Init(UART_USB); //Init an instance of the frame processor on UART_USB
+   C3_FRAME_PROCESSOR_Init(UART_USB); //Init an instance of the frame processor on UART_USB
    
    vTaskStartScheduler();
    return 0;

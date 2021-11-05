@@ -41,7 +41,7 @@ typedef struct {
  * @param frame_capture_t* 
  * @param frame_buffer_handler_t* 
  */
-void *FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
+void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/

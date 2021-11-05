@@ -17,12 +17,14 @@
 /*=====[Inclusions of private function dependencies]=========================*/
 
 /*=====[Definition macros of private constants]==============================*/
+
 #define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
 #define POOL_PACKET_COUNT     (5)
 #define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT)
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
+
 typedef struct {
     uint8_t *buffer;
     uartMap_t uart;
@@ -39,10 +41,10 @@ typedef struct {
  * 
  * @param taskParmPtr 
  */
-static void FRAME_PROCESSOR_Task( void* taskParmPtr ); 
+static void C3_FRAME_PROCESSOR_Task( void* taskParmPtr ); 
 /*=====[Implementations of public functions]=================================*/
 
-void FRAME_PROCESSOR_Init(uartMap_t uart) {
+void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
    app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
    configASSERT(resources != NULL);
    resources->uart = uart;
@@ -50,7 +52,7 @@ void FRAME_PROCESSOR_Init(uartMap_t uart) {
    configASSERT(resources->buffer != NULL);
 
    BaseType_t xReturned = xTaskCreate(
-      FRAME_PROCESSOR_Task,
+      C3_FRAME_PROCESSOR_Task,
       (const char *)"Frame Processor",
       configMINIMAL_STACK_SIZE,
       (void*) resources,
@@ -59,8 +61,9 @@ void FRAME_PROCESSOR_Init(uartMap_t uart) {
    );
    configASSERT(xReturned == pdPASS);
 }
+/*=====[Implementations of private functions]================================*/
 
-static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
+static void C3_FRAME_PROCESSOR_Task( void* taskParmPtr ) {
    app_resources_t *resources = (app_resources_t*) taskParmPtr;
    uint8_t *memory_pool = resources->buffer;
    uartMap_t uart = resources->uart;
@@ -88,9 +91,9 @@ static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
    }
    configASSERT( app_buffer_handler_send.queue != NULL );
 
-   FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
+   C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
 
-   FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
+   C2_FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
    
    frame_t frame;
    
@@ -105,5 +108,5 @@ static void FRAME_PROCESSOR_Task( void* taskParmPtr ) {
 
 /*=====[Implementations of interrupt functions]==============================*/
 
-/*=====[Implementations of private functions]================================*/
+
 

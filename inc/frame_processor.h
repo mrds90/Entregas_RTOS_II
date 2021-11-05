@@ -31,7 +31,7 @@ extern "C" {
  * 
  * @param uart 
  */
-void FRAME_PROCESSOR_Init(uartMap_t uart);
+void C3_FRAME_PROCESSOR_Init(uartMap_t uart);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
