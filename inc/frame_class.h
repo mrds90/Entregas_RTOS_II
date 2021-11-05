@@ -29,7 +29,7 @@ extern "C" {
 /*=====[ Definitions of public data types ]==================================*/
 
 typedef struct {
-    uint8_t *data;
+    char *data;
     uint8_t data_size;
 } frame_t;
 

@@ -21,6 +21,8 @@
 #define CHARACTER_SIZE_CMD               1
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) * sizeof(uint8_t))
+#define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
+#define FAKE_CRC                         "1B"
 /*=====[ Definitions of private data types ]===================================*/
 /**
  * @brief States of the packer state machine
@@ -168,11 +170,9 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
         // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
         // Enviar el paquete a la capa de transmision C1
-        snprintf(frame_print.data, frame_print.data_size, "%s", frame_print.data - CHARACTER_SIZE_ID * sizeof(char));
+        snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%s",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), FAKE_CRC);
         uartWriteByte(uart, START_OF_MESSAGE);
-        // uartWriteString(uart, "0001");              // ID
         uartWriteString(uart, frame_print.data);    // DATA
-        uartWriteString(uart, "1B");                // CRC
         uartWriteByte(uart, END_OF_MESSAGE);
         uartWriteString(uart, "\n");
 

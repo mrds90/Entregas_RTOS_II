@@ -63,7 +63,7 @@ static void C2_FRAME_CAPTURE_UartRxISR( void *parameter ) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
     BaseType_t px_higher_priority_task_woken = pdFALSE;
         
-    uint8_t character = uartRxRead(UART_USB); //!< Read the character from the UART (function of layer C1)
+    char character = uartRxRead(UART_USB); //!< Read the character from the UART (function of layer C1)
 
     if (character == START_OF_MESSAGE) {
         if(frame_capture->frame_active == 0) {

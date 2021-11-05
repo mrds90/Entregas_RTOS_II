@@ -20,7 +20,7 @@
 
 #define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
 #define POOL_PACKET_COUNT     (5)
-#define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT)
+#define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
 /*=====[Private function-like macros]========================================*/
 
 /*=====[Definitions of private data types]===================================*/
@@ -48,7 +48,7 @@ void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
    app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
    configASSERT(resources != NULL);
    resources->uart = uart;
-   resources->buffer = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
+   resources->buffer = (char *)pvPortMalloc(POOL_SIZE_BYTES);
    configASSERT(resources->buffer != NULL);
 
    BaseType_t xReturned = xTaskCreate(
