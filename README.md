@@ -12,9 +12,10 @@
 
 #### Justificación de arquitectura del TP
 - ***Gestión de datos:*** aplicamos un patrón de asignación de objetos desde un pool memoria _(Quantum Leaps - QMPool v6.2.0)_, el cual crea en compilación diferentes colecciones estáticas de objetos del mismo tipo. Si se requiere un objeto o bloque de objetos se lo puede solicitar de la colección disponible y cuando ya no se lo precisa se puedo liberar, quedando nuevamente disponible. En nuestro caso utilizamos un pool de 5 bloques de 200 unidades de datos de tipo _uint_8t_. Esto está sujeto a modificaciones según sea necesario en el avance de la implementación.
-Esto se podría haber resuelto con pvPortMalloc y vPortFree, pero sería propenso a la fragmentación del espacio de memoria por la frecuencia de pedido/liberación que se espera. Otra alternativa que no es aceptable es la asignación de memoria estática al momento de compilación ya que nos quedaríamos sin memoria con facilidad.
+Esto se podría haber resuelto con asignación dinámica (malloc/free), pero sería propenso a la fragmentación del espacio de memoria por la frecuencia de pedido/liberación que se espera. Otra alternativa que no es aceptable es la asignación de memoria estática en arrays al momento de compilación, ya que nos quedaríamos sin memoria con facilidad por la cantidad de datos a almacenar.
 
-- ***Taréas:***
+- ***Taréas:*** se crean tareas como métodos de los objetos modularizados en cada archivo. A su vez estos pertenecen a una capa y no conocen los atributos ni métodos privados de los objetos de otras capas, la estructura de las mismas se resume en la Tabla 1. Por el momento no se eliminan y sólo será necesario en caso de terminar una instancia de comunicación. Así mismo, si se crea una nueva instancia  de una clase se crearán nuevas tareas.
+
 - ***Técnicas:***
 
 
@@ -28,12 +29,19 @@ Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se 
 
 
 #### Tabla con resumen de estructura de capas.
+Se implementan las capas 2 y 3. La capa 1 está co
 
-| Capa de Abstracción | Clase    | Métodos/Funciones  | Detalle        |
-|:---:            |:---:         |:---:               |:---:           |
-|                 |              |                    |                |
-|  C2             |              |                    |                | 
-|                 |              |                    |                |
-|                 |              |                    |                |
-|                 |              |                    |                |
+| Capa de Abstracción | Clase          | Métodos/Funciones              | Descripción    |
+|:---:                |:---:           |:---:                           |:---:           |
+|                     |                |  C2_FRAME_PACKER_PrinterTask   |                | 
+|  C2                 |  FRAME_PACKER  |  C2_FRAME_PACKER_ReceiverInit  |                |
+|                     |                |  C2_FRAME_PACKER_PrinterInit   |                |
+|                     |                |  C2_FRAME_PACKER_ReceiverTask  |                |
+| --- | --- | --- | --- |
+|                     |                |  C2_FRAME_CAPTURE_UartRxInit   |                | 
+|  C2                 |  FRAME_CAPTURE |  C2_FRAME_CAPTURE_UartRxISR    |                |
+|                     |                |  *C2_FRAME_CAPTURE_ObjInit     |                |
+| --- | --- | --- | --- |
+|                     |                |  C3_FRAME_PROCESSOR_Init       |                | 
+|  C3                 |FRAME_PROCESSOR |  C3_FRAME_PROCESSOR_Task       |                |
 
