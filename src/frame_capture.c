@@ -16,6 +16,7 @@
 
 /*=====[ Definitions of private data types ]===================================*/
 
+
 /*=====[Definitions of private variables]=============================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
@@ -40,7 +41,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
-    frame_capture->frame_active = 0;
+    frame_capture->frame_active = FALSE;
     frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof( frame_t ) );
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
@@ -66,16 +67,16 @@ static void C2_FRAME_CAPTURE_UartRxISR( void *parameter ) {
     char character = uartRxRead(UART_USB); //!< Read the character from the UART (function of layer C1)
 
     if (character == START_OF_MESSAGE) {
-        if(frame_capture->frame_active == 0) {
+        if(frame_capture->frame_active == FALSE) {
             frame_capture->raw_frame.data = (uint8_t*) QMPool_get(frame_capture->buffer_handler.pool,0);
         }
         if (frame_capture->raw_frame.data != NULL) {
             frame_capture->buff_ind = 0;
-            frame_capture->frame_active = 1;
+            frame_capture->frame_active = TRUE;
         }
     }
     else if ((character == END_OF_MESSAGE) && frame_capture->frame_active) {
-        frame_capture->frame_active = 0;
+        frame_capture->frame_active = FALSE;
         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
         if(frame_capture->buffer_handler.queue != NULL) {
             xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken);
@@ -86,7 +87,7 @@ static void C2_FRAME_CAPTURE_UartRxISR( void *parameter ) {
     }
     else if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
         frame_capture->buff_ind = 0;
-        frame_capture->frame_active = 0;
+        frame_capture->frame_active = FALSE;
         QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
     }
     else if (frame_capture->frame_active) {
