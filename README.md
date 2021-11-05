@@ -33,15 +33,15 @@ Se implementan las capas 2 y 3. La capa 1 está comprendida por SAPI y UART.
 
 | Capa de Abstracción | Clase          | Métodos/Funciones              | Descripción    |
 |:---:                |:---:           |:---:                           |:---:           |
-|                     |                |  C2_FRAME_PACKER_PrinterTask   | Recibe el conexto (uart, Queue y bloque pool) e imprime el paquete devuelto por la capa 3 de procesamiento y libera el bloque del pool | 
-|  C2                 |  FRAME_PACKER  |  C2_FRAME_PACKER_ReceiverInit  | Recive como parámetro el contexto necesario para la tarea _C2_FRAME_PACKER_ReceiverTask_ , carga el contexto en memoria dinámica y la crea pasandole estos datos a través de un puntero a esta. |
+|       C2              |        FRAME_PACKER        |  C2_FRAME_PACKER_PrinterTask   | Recibe el conexto (uart, Queue y bloque pool), imprime el paquete devuelto por la capa 3 agregando ID y CRC de procesamiento y libera el bloque del pool | 
+|                   |          |  C2_FRAME_PACKER_ReceiverInit  | Recive como parámetro el contexto necesario para la tarea _C2_FRAME_PACKER_ReceiverTask_ , carga el contexto en memoria dinámica y la crea pasandole estos datos a través de un puntero a esta. |
 |                     |                |  C2_FRAME_PACKER_PrinterInit   | Recive como parámetro el contexto necesario para la tarea _C2_FRAME_PACKER_PrinterTask_ , carga el contexto en memoria dinámica y la crea pasandole estos datos a través de un puntero a esta. |
 |                     |                |  C2_FRAME_PACKER_ReceiverTask  | Recibe el conexto (uart, Queue y bloque pool) y a través de una máquina de estados toma decisiones sobre los datos recibidos. (Chequea SOM y EOM, ªCRC, ªID, envía a cola, ªsepara los datos del paquete) - (ª)Aún no implementados.  |
 | --- | --- | --- | --- |
-|                     |                |  C2_FRAME_CAPTURE_UartRxInit   |                | 
-|  C2                 |  FRAME_CAPTURE |  C2_FRAME_CAPTURE_UartRxISR    |                |
-|                     |                |  *C2_FRAME_CAPTURE_ObjInit     |                |
+|      C2               |   FRAME_CAPTURE   |  C2_FRAME_CAPTURE_UartRxInit   |Es la funcion que inicializa la UART. Recibe la UART para la transmisión, la funcion de callback para la ISR y un puntero a una estructura de tipo frame_capture_t que contiene el contexto necesario para procesar cada frame. | 
+|                   |         |  C2_FRAME_CAPTURE_UartRxISR    | Es la función de callback a ser llamada en cada interrupción UART. Se utiliza el contexto pasado en la estructura frame_capture_t para decidir que hacer con el dato recibido que generó la interrupción. |
+|                     |                |  \* C2_FRAME_CAPTURE_ObjInit     | Inicializa el frame para la captura. Recibe el puntero al pool y la variable de tipo uartMap_t por la que se establece la comunicación. |
 | --- | --- | --- | --- |
-|                     |                |  C3_FRAME_PROCESSOR_Init       |                | 
-|  C3                 |FRAME_PROCESSOR |  C3_FRAME_PROCESSOR_Task       |                |
+|     C3                 |    FRAME_PROCESSOR   |  C3_FRAME_PROCESSOR_Init  |  Esta función recibe desde el main cual es la uart que se usa para la instancia, pide espacio para el pool e inicia la tarea para procesar el dato recibido enviandole un puntero al contexto recién generado  | 
+|                  |          |  C3_FRAME_PROCESSOR_Task       |    Procesa el dato recibido, valida el frame y manda información formateada de vuelta a la capa 2 para agregar ID y CRC, y luego ser enviada por C2_FRAME_PACKER_PrinterTask |
 
