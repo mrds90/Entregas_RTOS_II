@@ -26,7 +26,7 @@
  * @param UARTCallBackFunc 
  * @param parameter 
  */
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter, uartMap_t uart);
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
@@ -45,16 +45,18 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof(frame_t) );
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
-    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture, uart);
+    frame_capture->uart = uart;
+    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture);
     return (void *) frame_capture;
 }
 
 /*=====[Implementations of private functions]================================*/
 
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter, uartMap_t uart) {  // Deberiamos pasarle tambien como parametro la UART a utilizar
-   uartConfig(uart, 115200);
-   uartCallbackSet(uart, UART_RECEIVE, UARTCallBackFunc, parameter);
-   uartInterrupt(uart, true);
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter) {
+   frame_capture_t *frame_capture = (frame_capture_t *) parameter;
+   uartConfig(frame_capture->uart, 115200);
+   uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTCallBackFunc, parameter);
+   uartInterrupt(frame_capture->uart, true);
 }
 
 /*=====[Implementations of interrupt functions]==============================*/
@@ -64,7 +66,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
     BaseType_t px_higher_priority_task_woken = pdFALSE;
         
-    char character = uartRxRead(UART_USB); //!< Read the character from the UART (function of layer C1)
+    char character = uartRxRead(frame_capture->uart); //!< Read the character from the UART (function of layer C1)
 
     if (character == START_OF_MESSAGE) {
         if(frame_capture->frame_active == FALSE) {

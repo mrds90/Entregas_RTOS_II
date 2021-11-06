@@ -32,6 +32,7 @@ typedef struct {
     frame_t raw_frame;
     bool_t frame_active;
     uint8_t buff_ind;
+    uartMap_t uart;
 } frame_capture_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
