@@ -45,4 +45,4 @@ Se implementan las capas 2 y 3. La capa 1 está comprendida por SAPI y UART.
 |     C3                 |    FRAME_PROCESSOR   |  C3_FRAME_PROCESSOR_Init  |  Esta función recibe desde el main cual es la uart que se usa para la instancia, pide espacio para el pool e inicia la tarea para procesar el dato recibido enviandole un puntero al contexto recién generado  | 
 |                  |          |  C3_FRAME_PROCESSOR_Task       |    Procesa el dato recibido, valida el frame y manda información formateada de vuelta a la capa 2 para agregar ID y CRC, y luego ser enviada por C2_FRAME_PACKER_PrinterTask |
 
-![alt text](https://raw.githubusercontent.com/mrds90/Entregas_RTOS_II_Individual/test/not_usefull/Test.gif?token=ADRJ3NEGCYCOMPPQHZD6EATBQ267G)
+![alt text](https://raw.githubusercontent.com/mrds90/Entregas_RTOS_II/main/images/frame_trip.gif?token=ADRJ3NHL3PVPWMT6PZXH6QTBQ27XM)
