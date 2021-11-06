@@ -23,9 +23,9 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
-#define MAX_BUFFER_SIZE                200
-#define CHARACTER_SIZE_CRC       2
-#define QUEUE_SIZE               7
+#define MAX_BUFFER_SIZE         200
+#define CHARACTER_SIZE_CRC      2
+#define QUEUE_SIZE              7
 /*=====[ Definitions of public data types ]==================================*/
 
 typedef struct {

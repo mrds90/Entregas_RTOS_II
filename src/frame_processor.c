@@ -19,7 +19,7 @@
 /*=====[Definition macros of private constants]==============================*/
 
 #define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
-#define POOL_PACKET_COUNT     (5)
+#define POOL_PACKET_COUNT     (QUEUE_SIZE)
 #define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
 /*=====[Private function-like macros]========================================*/
 
@@ -98,7 +98,7 @@ static void C3_FRAME_PROCESSOR_Task(void* taskParmPtr) {
    
    frame_t frame;
    
-   while( true ) {
+   while(TRUE) {
       xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
       // Do something with the frame
 

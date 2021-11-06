@@ -14,10 +14,10 @@
 
 /*=====[Definition macros of private constants]==============================*/
 
-/*=====[ Definitions of private data types ]===================================*/
+/*=====[Definitions of private data types]===================================*/
 
 
-/*=====[Definitions of private variables]=============================*/
+/*=====[Definitions of private variables]====================================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
@@ -42,7 +42,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
     frame_capture->frame_active = FALSE;
-    frame_capture->buffer_handler.queue = xQueueCreate( QUEUE_SIZE, sizeof(frame_t) );
+    frame_capture->buffer_handler.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;

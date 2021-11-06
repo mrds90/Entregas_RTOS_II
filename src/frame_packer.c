@@ -110,7 +110,7 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
     frame_t frame_app;
     frame_state_t state = FRAME_WAITING;
 
-    while (1) {
+    while (TRUE) {
         uint8_t frame_correct = 0;
 
         switch (state) {
