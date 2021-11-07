@@ -84,86 +84,89 @@ static bool_t C2_FRAME_CAPTURE_CheckCRC(void) {
 /*=====[Implementations of interrupt functions]==============================*/
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
-    bool_t error = FALSE;
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
-    BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-    char character = uartRxRead(frame_capture->uart); //!< Read the character from the UART (function of layer C1)
+    while(uartRxReady(frame_capture->uart)) {
+        bool_t error = FALSE;
+        BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-    switch (character) {
-        case START_OF_MESSAGE:
-            if(!frame_capture->frame_active) {
-                UBaseType_t uxSavedInterruptStatus;
-                uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR(); 
-                frame_capture->raw_frame.data = (char*) QMPool_get(frame_capture->buffer_handler.pool,0);
-                taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
-            }
-            if (frame_capture->raw_frame.data != NULL) {                
-                frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
-                frame_capture->frame_active = TRUE;
-                frame_capture->buff_ind = 0;
-                frame_capture->crc = 0;
-            }
-            break;
-        case END_OF_MESSAGE:
-            if(frame_capture->frame_active) {
-                error = TRUE;
-                if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
-                    //TODO: Chequeo de CRC
-                    if (C2_FRAME_CAPTURE_CheckCRC()) {
-                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
-                        if(frame_capture->buffer_handler.queue != NULL) {
-                            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-                            frame_capture->frame_active = FALSE;
-                            if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
-                                if (px_higher_priority_task_woken == pdTRUE) {
-                                    portYIELD_FROM_ISR(px_higher_priority_task_woken);
+        char character = uartRxRead(frame_capture->uart); //!< Read the character from the UART (function of layer C1)
+
+        switch (character) {
+            case START_OF_MESSAGE:
+                if(!frame_capture->frame_active) {
+                    UBaseType_t uxSavedInterruptStatus;
+                    uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR(); 
+                    frame_capture->raw_frame.data = (char*) QMPool_get(frame_capture->buffer_handler.pool,0);
+                    taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+                }
+                if (frame_capture->raw_frame.data != NULL) {                
+                    frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
+                    frame_capture->frame_active = TRUE;
+                    frame_capture->buff_ind = 0;
+                    frame_capture->crc = 0;
+                }
+                break;
+            case END_OF_MESSAGE:
+                if(frame_capture->frame_active) {
+                    error = TRUE;
+                    if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
+                        //TODO: Chequeo de CRC
+                        if (C2_FRAME_CAPTURE_CheckCRC()) {
+                            frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
+                            if(frame_capture->buffer_handler.queue != NULL) {
+                                frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
+                                frame_capture->frame_active = FALSE;
+                                if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
+                                    if (px_higher_priority_task_woken == pdTRUE) {
+                                        portYIELD_FROM_ISR(px_higher_priority_task_woken);
+                                    }
+                                    
+                                    error = FALSE;
                                 }
-                                
-                                error = FALSE;
                             }
                         }
                     }
                 }
-            }
-            break;
-        default:
-            switch (frame_capture->state) {
-                case FRAME_CAPTURE_STATE_IDLE:
+                break;
+            default:
+                switch (frame_capture->state) {
+                    case FRAME_CAPTURE_STATE_IDLE:
 
-                    break;
-                case FRAME_CAPTURE_STATE_ID_CHECK:
-                    if (CHECK_ID(character)) {
-                        frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
-                        if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
-                            frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
+                        break;
+                    case FRAME_CAPTURE_STATE_ID_CHECK:
+                        if (CHECK_ID(character)) {
+                            frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
+                            if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
+                                frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
+                            }
+                        } 
+                        else {
+                            error = TRUE;
                         }
-                    } 
-                    else {
+                        break;
+                    case FRAME_CAPTURE_STATE_FRAME:
+                        frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
+                        //TODO: Calculo de CRC
+                        if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
+                            error = TRUE;
+                        }
+                        break;
+                    default:
                         error = TRUE;
-                    }
-                    break;
-                case FRAME_CAPTURE_STATE_FRAME:
-                    frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
-                    //TODO: Calculo de CRC
-                    if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
-                        error = TRUE;
-                    }
-                    break;
-                default:
-                    error = TRUE;
-                    break;
-            }
-            break;
-    }
+                        break;
+                }
+                break;
+        }
 
-    if (error) {
-        UBaseType_t uxSavedInterruptStatus;
-        uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-        QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
-        frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-        frame_capture->frame_active = FALSE;
-        taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+        if (error) {
+            UBaseType_t uxSavedInterruptStatus;
+            uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+            QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
+            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
+            frame_capture->frame_active = FALSE;
+            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+        }
     }
 }
 
