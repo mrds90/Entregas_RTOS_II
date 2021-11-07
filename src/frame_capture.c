@@ -13,7 +13,7 @@
 #include "task.h"
 
 /*=====[Definition macros of private constants]==============================*/
-#define CHECK_ID(character) ((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE
+#define CHECK_HEXA(character) (((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE)
 #define FRAME_MIN_SIZE      (CHARACTER_SIZE_ID + CHARACTER_SIZE_CRC)
 /*=====[Definitions of private data types]===================================*/
 typedef enum {
@@ -52,7 +52,7 @@ static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter)
  */
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
  
-static bool_t C2_FRAME_CAPTURE_CheckCRC(void);
+__STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 /*=====[Implementations of public functions]=================================*/
 
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
@@ -78,8 +78,14 @@ static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter)
    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTCallBackFunc, parameter);
    uartInterrupt(frame_capture->uart, true);
 }
-static bool_t C2_FRAME_CAPTURE_CheckCRC(void) {
-    return TRUE;
+__STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc) {
+    bool_t ret = FALSE;
+
+    if( (CHECK_HEXA( frame.data[frame.data_size] )) && (CHECK_HEXA( frame.data[frame.data_size + 1] ))  ) {
+        ret = TRUE;
+    }
+
+    return ret;
 }
 /*=====[Implementations of interrupt functions]==============================*/
 
@@ -112,8 +118,8 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     error = TRUE;
                     if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
                         //TODO: Chequeo de CRC
-                        if (C2_FRAME_CAPTURE_CheckCRC()) {
-                            frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
+                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Es el tamaño de los datos
+                        if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
                             if(frame_capture->buffer_handler.queue != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                                 frame_capture->frame_active = FALSE;
@@ -135,7 +141,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
                         break;
                     case FRAME_CAPTURE_STATE_ID_CHECK:
-                        if (CHECK_ID(character)) {
+                        if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                             if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
