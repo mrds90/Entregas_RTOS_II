@@ -256,11 +256,11 @@ unsigned short QMPool_getMin( QMPool * const me )
 {
     unsigned short min;
 
-    portENTER_CRITICAL(); //Enter on critical section
+    //portENTER_CRITICAL(); //Enter on critical section
 
     min = me->nMin;
 
-    portEXIT_CRITICAL(); //Exit from critical section
+    //portEXIT_CRITICAL(); //Exit from critical section
 
     return min;
 }

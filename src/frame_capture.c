@@ -95,28 +95,29 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
             if(!frame_capture->frame_active) { 
                 frame_capture->raw_frame.data = (char*) QMPool_get(frame_capture->buffer_handler.pool,0);
             }
-            if (frame_capture->raw_frame.data != NULL) {
-                frame_capture->crc = 0;
-                frame_capture->raw_frame.data_size = 0;
+            if (frame_capture->raw_frame.data != NULL) {                
                 frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
                 frame_capture->frame_active = TRUE;
             }
+            frame_capture->crc = 0;
+            frame_capture->raw_frame.data_size = 0;            
             break;
         case END_OF_MESSAGE:
             error = TRUE;
-            if(frame_capture->raw_frame.data_size >= FRAME_MIN_SIZE) {
+            if(frame_capture->raw_frame.data_size >= FRAME_MIN_SIZE && frame_capture->frame_active) {
                 //TODO: Chequeo de CRC
                 if (C2_FRAME_CAPTURE_CheckCRC()) {
                     frame_capture->raw_frame.data_size -= CHARACTER_SIZE_CRC;
                     if(frame_capture->buffer_handler.queue != NULL) {
                         frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                         frame_capture->frame_active = FALSE;
-                        xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken);
-                        if (px_higher_priority_task_woken == pdTRUE) {
-                            portYIELD_FROM_ISR(px_higher_priority_task_woken);
+                        if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
+                            if (px_higher_priority_task_woken == pdTRUE) {
+                                portYIELD_FROM_ISR(px_higher_priority_task_woken);
+                            }
+                            frame_capture->raw_frame.data_size = 0;
+                            error = FALSE;
                         }
-                        frame_capture->raw_frame.data_size = 0;
-                        error = FALSE;
                     }
                 }
             }
@@ -154,6 +155,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
         frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
         frame_capture->frame_active = FALSE;
+        frame_capture->raw_frame.data_size = 0;
     }
 }
 
