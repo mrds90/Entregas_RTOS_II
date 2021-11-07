@@ -126,6 +126,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     }
                 }
             }
+            break;
         default:
             switch (frame_capture->state) {
                 case FRAME_CAPTURE_STATE_IDLE:
