@@ -101,25 +101,27 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
             if (frame_capture->raw_frame.data != NULL) {                
                 frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
                 frame_capture->frame_active = TRUE;
-                frame_capture->raw_frame.data_size = 0;
+                frame_capture->buff_ind = 0;
                 frame_capture->crc = 0;
             }
             break;
         case END_OF_MESSAGE:
-            error = TRUE;
             if(frame_capture->frame_active) {
-                //TODO: Chequeo de CRC
-                if (C2_FRAME_CAPTURE_CheckCRC()) {
-                    frame_capture->raw_frame.data_size -= CHARACTER_SIZE_CRC;
-                    if(frame_capture->buffer_handler.queue != NULL) {
-                        frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-                        frame_capture->frame_active = FALSE;
-                        if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
-                            if (px_higher_priority_task_woken == pdTRUE) {
-                                portYIELD_FROM_ISR(px_higher_priority_task_woken);
+                error = TRUE;
+                if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
+                    //TODO: Chequeo de CRC
+                    if (C2_FRAME_CAPTURE_CheckCRC()) {
+                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC;
+                        if(frame_capture->buffer_handler.queue != NULL) {
+                            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
+                            frame_capture->frame_active = FALSE;
+                            if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
+                                if (px_higher_priority_task_woken == pdTRUE) {
+                                    portYIELD_FROM_ISR(px_higher_priority_task_woken);
+                                }
+                                
+                                error = FALSE;
                             }
-                            
-                            error = FALSE;
                         }
                     }
                 }
@@ -131,8 +133,8 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     break;
                 case FRAME_CAPTURE_STATE_ID_CHECK:
                     if (CHECK_ID(character)) {
-                        frame_capture->raw_frame.data[frame_capture->raw_frame.data_size++] = character;
-                        if (frame_capture->raw_frame.data_size == CHARACTER_SIZE_ID) {
+                        frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
+                        if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
                             frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                         }
                     } 
@@ -141,7 +143,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     }
                     break;
                 case FRAME_CAPTURE_STATE_FRAME:
-                    frame_capture->raw_frame.data[frame_capture->raw_frame.data_size++] = character;
+                    frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                     //TODO: Calculo de CRC
                     if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
                         error = TRUE;
