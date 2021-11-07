@@ -13,6 +13,7 @@
 #include "frame_capture.h"
 
 #include "string.h"
+#include "crc8.h"
 
 /*=====[Definition macros of private constants]==============================*/
 #define CHARACTER_INDEX_ID               0
@@ -168,7 +169,8 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
         // Wait for message
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
         // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-        snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%s",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), FAKE_CRC);
+        uint8_t crc = crc8_calc(0, frame_print.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_print.data_size) - CHARACTER_SIZE_CRC - 1);
+        snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
         // Enviar el paquete a la capa de transmision C1
         uartWriteByte(uart, START_OF_MESSAGE);
         uartWriteString(uart, frame_print.data);    // Print the frame
