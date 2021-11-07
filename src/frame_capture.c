@@ -93,7 +93,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     switch (character) {
         case START_OF_MESSAGE:
             if(!frame_capture->frame_active) { 
-                frame_capture->raw_frame.data = (uint8_t*) QMPool_get(frame_capture->buffer_handler.pool,0);
+                frame_capture->raw_frame.data = (char*) QMPool_get(frame_capture->buffer_handler.pool,0);
             }
             if (frame_capture->raw_frame.data != NULL) {
                 frame_capture->crc = 0;
@@ -115,6 +115,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         if (px_higher_priority_task_woken == pdTRUE) {
                             portYIELD_FROM_ISR(px_higher_priority_task_woken);
                         }
+                        frame_capture->raw_frame.data_size = 0;
                         error = FALSE;
                     }
                 }
