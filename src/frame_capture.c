@@ -11,6 +11,9 @@
 #include "frame_capture.h"
 #include "string.h"
 #include "task.h"
+#include "crc8.h"
+#include <stdio.h>
+#include <ctype.h>
 
 /*=====[Definition macros of private constants]==============================*/
 #define CHECK_HEXA(character) (((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE)
@@ -53,6 +56,8 @@ static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter)
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
  
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
+
+static uint8_t atoh(char *ascii, uint8_t n);
 /*=====[Implementations of public functions]=================================*/
 
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
@@ -78,11 +83,26 @@ static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter)
    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTCallBackFunc, parameter);
    uartInterrupt(frame_capture->uart, true);
 }
+
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc) {
     bool_t ret = FALSE;
 
     if( (CHECK_HEXA( frame.data[frame.data_size] )) && (CHECK_HEXA( frame.data[frame.data_size + 1] ))  ) {
-        ret = TRUE;
+        if (atoh(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc ) {
+            ret = TRUE;
+        }
+    }
+
+    return ret;
+}
+
+static uint8_t atoh(char *ascii, uint8_t n) {
+    uint8_t ret = 0, hex_digit = 0;
+
+    for(int i = n-1; i >= 0; i--) {
+        if(isdigit(ascii[i])) hex_digit = ascii[i] - '0';
+        else hex_digit = ascii[i] - 'A' + 10;
+        ret += hex_digit << (4*(n-(i+1))); 
     }
 
     return ret;
@@ -144,6 +164,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                             if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
+                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, 2);
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                             }
                         } 
@@ -152,8 +173,10 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         }
                         break;
                     case FRAME_CAPTURE_STATE_FRAME:
-                        frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
+                        frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
                         //TODO: Calculo de CRC
+                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind-2], 1);
+                        frame_capture->buff_ind++;
                         if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
                             error = TRUE;
                         }
