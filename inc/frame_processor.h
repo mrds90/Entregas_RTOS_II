@@ -2,7 +2,7 @@
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 2021/10/31
- * Version: 1.0
+ * Version: 1.1
  *===========================================================================*/
 
 /*=====[Avoid multiple inclusion - begin]====================================*/

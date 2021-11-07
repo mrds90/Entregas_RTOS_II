@@ -2,7 +2,7 @@
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 31/10/2021
- * Version: 1.0
+ * Version: 1.1
  *===========================================================================*/
 
 /*=====[Avoid multiple inclusion - begin]====================================*/
@@ -23,24 +23,16 @@ extern "C" {
 /*=====[Definition macros of public constants]===============================*/
 #define START_OF_MESSAGE         '('
 #define END_OF_MESSAGE           ')'
+#define CHARACTER_SIZE_ID         4
 
 /*=====[ Definitions of public data types ]==================================*/
-
-
-typedef struct {
-    frame_buffer_handler_t buffer_handler;
-    frame_t raw_frame;
-    bool_t frame_active;
-    uint8_t buff_ind;
-    uartMap_t uart;
-} frame_capture_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
  * @brief Initializes the frame capture
  * 
- * @param frame_capture_t* 
- * @param frame_buffer_handler_t* 
+ * @param pool* 
+ * @param uart 
  */
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 

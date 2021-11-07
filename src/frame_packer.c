@@ -2,7 +2,7 @@
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 31/10/2021
- * Version: 1.0
+ * Version: 1.1
  *===========================================================================*/
 
 /*=====[Inclusion of own header]=============================================*/
@@ -16,7 +16,6 @@
 
 /*=====[Definition macros of private constants]==============================*/
 #define CHARACTER_INDEX_ID               0
-#define CHARACTER_SIZE_ID                4
 #define CHARACTER_INDEX_CMD              (CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
 #define CHARACTER_SIZE_CMD               1
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
@@ -103,7 +102,7 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
     frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t*) taskParmPtr;
     frame_buffer_handler_t* buffer_handler_app = frame_packer_resources->buffer_handler;
     uartMap_t uart = frame_packer_resources->uart;
-    frame_capture_t *frame_capture = C2_FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
+    frame_buffer_handler_t *buffer_handler_capture = C2_FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
     vPortFree(frame_packer_resources);
 
     frame_t raw_frame;
@@ -115,7 +114,7 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 
         switch (state) {
             case FRAME_WAITING:
-                xQueueReceive(frame_capture->buffer_handler.queue, &raw_frame, portMAX_DELAY);
+                xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY);
                 // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
                 state = FRAME_CRC_CHECK;
                 break;
@@ -137,7 +136,7 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
                 else {
                     state = FRAME_WAITING;
                     taskENTER_CRITICAL(); 
-                    QMPool_put(frame_capture->buffer_handler.pool, raw_frame.data);
+                    QMPool_put(buffer_handler_capture->pool, raw_frame.data);
                     taskEXIT_CRITICAL(); 
                     raw_frame.data = NULL;
                 }
