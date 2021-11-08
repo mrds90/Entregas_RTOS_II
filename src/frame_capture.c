@@ -16,8 +16,11 @@
 #include <ctype.h>
 
 /*=====[Definition macros of private constants]==============================*/
-#define CHECK_HEXA(character) (((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE)
-#define FRAME_MIN_SIZE      (CHARACTER_SIZE_ID + CHARACTER_SIZE_CRC)
+#define CHECK_HEXA(character)  (((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE)
+#define FRAME_MIN_SIZE         (CHARACTER_SIZE_ID + CHARACTER_SIZE_CRC)
+#define A_HEXA_VALUE           (10)
+#define NIBBLE_SIZE            (4)
+#define NIBBLE_BIT(nibble,max_nibbles) (NIBBLE_SIZE*(max_nibbles-(nibble+1)))
 /*=====[Definitions of private data types]===================================*/
 typedef enum {
     FRAME_CAPTURE_STATE_IDLE,
@@ -57,7 +60,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
  
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 
-static uint8_t atoh(char *ascii, uint8_t n);
+static uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 /*=====[Implementations of public functions]=================================*/
 
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
@@ -88,7 +91,7 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
     bool_t ret = FALSE;
 
     if( (CHECK_HEXA( frame.data[frame.data_size] )) && (CHECK_HEXA( frame.data[frame.data_size + 1] ))  ) {
-        if (atoh(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc ) {
+        if (C2_FRAME_CAPTURE_AsciiHexaToInt(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc ) {
             ret = TRUE;
         }
     }
@@ -96,13 +99,13 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
     return ret;
 }
 
-static uint8_t atoh(char *ascii, uint8_t n) {
+__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t digit_qty) {
     uint8_t ret = 0, hex_digit = 0;
 
-    for(int i = n-1; i >= 0; i--) {
-        if(isdigit(ascii[i])) hex_digit = ascii[i] - '0';
-        else hex_digit = ascii[i] - 'A' + 10;
-        ret += hex_digit << (4*(n-(i+1))); 
+    for(uint8_t nibble = 0; nibble < digit_qty; nibble++) {
+        if(isdigit(ascii[nibble])) hex_digit = ascii[nibble] - '0';
+        else hex_digit = ascii[nibble] - 'A' + A_HEXA_VALUE;
+        ret += hex_digit << NIBBLE_BIT(nibble, digit_qty); 
     }
 
     return ret;
@@ -137,7 +140,6 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                 if(frame_capture->frame_active) {
                     error = TRUE;
                     if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
-                        //TODO: Chequeo de CRC
                         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Es el tamaño de los datos
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
                             if(frame_capture->buffer_handler.queue != NULL) {
@@ -174,7 +176,6 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         break;
                     case FRAME_CAPTURE_STATE_FRAME:
                         frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
-                        //TODO: Calculo de CRC
                         frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind-2], 1);
                         frame_capture->buff_ind++;
                         if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
