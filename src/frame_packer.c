@@ -25,18 +25,6 @@
 #define FAKE_CRC                         "1B"
 /*=====[ Definitions of private data types ]===================================*/
 /**
- * @brief States of the packer state machine
- * 
- */
-typedef enum {
-    FRAME_WAITING,
-    FRAME_CRC_CHECK,
-    FRAME_PROSESSING,
-    FRAME_COMPLETE,
-    FRAME_STATE_QTY
-} frame_state_t;
-
-/**
  * @brief Resourse used to store the frame to be packed
  * 
  */
@@ -108,50 +96,14 @@ static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr) {
 
     frame_t raw_frame;
     frame_t frame_app;
-    frame_state_t state = FRAME_WAITING;
 
     while (TRUE) {
-        uint8_t frame_correct = 0;
-
-        switch (state) {
-            case FRAME_WAITING:
-                xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY);
-                // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
-                state = FRAME_CRC_CHECK;
-                break;
-            case FRAME_CRC_CHECK:
-                // CHECK CRC
-                // Si el CRC es valido, 
-                state = FRAME_PROSESSING;
-                break;
-            case FRAME_PROSESSING:
-                // PROCESS FRAME
-                // TODO: Routine that validate the ID
-                // Separar aca los campos ID, C+DATA y CRC del paquete recibido
-                frame_correct = 1;
-                if(frame_correct) {
-                    frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
-                    frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
-                    state = FRAME_COMPLETE;
-                }
-                else {
-                    state = FRAME_WAITING;
-                    taskENTER_CRITICAL(); 
-                    QMPool_put(buffer_handler_capture->pool, raw_frame.data);
-                    taskEXIT_CRITICAL(); 
-                    raw_frame.data = NULL;
-                }
-                break;
-            case FRAME_COMPLETE:
-                // enviar C+DATA a la capa C3
-                frame_app.data[frame_app.data_size] = '\0';
-                xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
-                state = FRAME_WAITING;
-                break;
-            default:
-                break;
-        }
-
+            xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY);
+            // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
+            frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
+            frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
+            frame_app.data[frame_app.data_size] = '\0';
+            xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
     }
 }
 
