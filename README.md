@@ -2,12 +2,32 @@
 
 #### Fecha: 05/11/2021
 
-#### Revisión: 1.0
+#### Versión: 1.1
 
 #### Integrantes:
 - DOMINGUEZ SHOCRÓN, Marcos Raúl - <mrds0690@gmail.com>
 - MORZÁN, Pablo Javier - <pablomorzan@gmail.com>
 - RÍOS, Martín Julián - <jrios@fi.uba.ar>
+
+#### Tabla de versiones
+| Versión | Fecha | Modificaciones |
+|:--- |:---|:---|
+| v 1.0 |  5/11/2021  | **Versión inicial: se entregan requisitos R_C2_1 a R_C2_9**  |
+|  |  | - Se elige estructura de memoria dinámica | 
+|  |  | - Se define estructura de capas y contexto de cada función según requisitos |
+|  |  | - Se establece comunicación entre capas y funciones buscando mantener modularidad |
+|  |  | - Se implementa recepción de datos en contexto de interrupción |
+| v 1.1 |  8/11/2021  | **Se entregan requisitos R_C2_10 a R_C2_16**  |
+|  |  | - Chequeo de validez de ID | 
+|  |  | - Se prueba con 2 instancias a máxima velocidad (Se pierden 10% de datos |
+|  |  | - Se modifica procesamiento if-else por máquina de estados dentro de otro switch-case en ISR de FRAME_CAPTURE |
+|  |  | - Se agregan secciones críticas al gestionar el pool en contexto de interrupción taskENTER_CRITICAL_FROM_ISR/taskEXIT_CRITICAL_FROM_ISR |
+|  |  | - Se agrega lectura de UART en caso de acumulación en buffer |
+|  |  | - Se valida CRC en recepción |
+|  |  | - Se calcula y agrega CRC a dato de salida |
+|  |  | - Se prueba con 4000 mensajes en una instancia a máxima velocidad y no se pierden datos |
+
+
 
 
 #### Justificación de arquitectura del TP
