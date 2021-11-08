@@ -33,6 +33,12 @@ typedef struct {
     uartMap_t uart;
 } frame_packer_resources_t;
 
+typedef struct {
+    QMPool *pool;
+    frame_t raw_frame;
+    uartMap_t uart;
+} frame_printer_resources_t;
+
 /*=====[Definitions of private variables]=============================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
@@ -48,6 +54,10 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr);
  * @param taskParmPtr 
  */
 static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr);
+
+static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
+
+static void C2_FRAME_PACKER_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
@@ -112,6 +122,11 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
     frame_packer_resources_t *printer_resources = (frame_packer_resources_t*) taskParmPtr;
     frame_buffer_handler_t* buffer_handler_print = printer_resources->buffer_handler;
     uartMap_t uart = printer_resources->uart;
+
+    frame_printer_resources_t printer_isr;
+    printer_isr.pool = buffer_handler_print->pool;
+    printer_isr.uart = uart;
+
     vPortFree(printer_resources);
 
     frame_t frame_print;
@@ -124,17 +139,55 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
         uint8_t crc = crc8_calc(0, frame_print.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_print.data_size) - CHARACTER_SIZE_CRC - 1);
         snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
         // Enviar el paquete a la capa de transmision C1
-        uartWriteByte(uart, START_OF_MESSAGE);
-        uartWriteString(uart, frame_print.data);    // Print the frame
-        uartWriteByte(uart, END_OF_MESSAGE);
-        uartWriteString(uart, "\n");
+        printer_isr.raw_frame = frame_print;
+        
+        //uartWriteByte(uart, START_OF_MESSAGE);
+        //uartWriteString(uart, frame_print.data);    // Print the frame
+        //uartWriteByte(uart, END_OF_MESSAGE);
+        //uartWriteString(uart, "\n");
 
-        taskENTER_CRITICAL();
-        QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE); //< Free the memory
-        taskEXIT_CRITICAL();
+        C2_FRAME_PACKER_UartTxInit(C2_FRAME_PACKER_UartTxISR, (void*) &printer_isr);
+        uartSetPendingInterrupt(uart);
+
+        // taskENTER_CRITICAL();
+        // QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE); //< Free the memory
+        // taskEXIT_CRITICAL();
     }
 }
 
+static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
+   frame_printer_resources_t *printer_resources = (frame_printer_resources_t *) parameter;
+   uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter);
+}
+
+/*=====[Implementations of interrupt functions]==============================*/
+
+static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
+    frame_printer_resources_t *printer_resources = (frame_printer_resources_t *) parameter;
+
+    gpioWrite(LED1, ON);
+
+    if (*(printer_resources->raw_frame.data) != '\0') {
+        while(*(printer_resources->raw_frame.data) != '\0') {
+            if (uartTxReady(printer_resources->uart)) {
+                uartTxWrite(printer_resources->uart, *(printer_resources->raw_frame.data++));
+            } 
+            else {
+                break;
+            }        
+        }
+        if (*(printer_resources->raw_frame.data) == '\0') {
+            //uartClearPendingInterrupt(frame_capture->uart);
+            uartCallbackClr( printer_resources->uart, UART_TRANSMITER_FREE);
+            UBaseType_t uxSavedInterruptStatus;
+            uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+            QMPool_put(printer_resources->pool, printer_resources->raw_frame.data); //< Se libera el bloque del pool de memoria
+            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);                 
+        }
+    }
+
+    gpioWrite(LED1, OFF);
+}
 
 
 

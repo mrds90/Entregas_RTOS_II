@@ -36,7 +36,6 @@ extern "C" {
  */
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
-
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
 /*=====[C++ - end]===========================================================*/
