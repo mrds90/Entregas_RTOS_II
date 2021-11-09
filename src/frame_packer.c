@@ -62,8 +62,19 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr);
  */
 static void C2_FRAME_PACKER_ReceiverTask(void* taskParmPtr);
 
+/**
+ * @brief Inicializa la interrupción de Tx de la UART.
+ * 
+ * @param UARTRxCallBackFunc
+ * @param parameter 
+ */
 static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
+/**
+ * @brief TX UART ISR function. Esta función se llama cuando el buffer de la UART está vacío.
+ * 
+ * @param parameter QMPool*, frame_t y Uart inicializados.
+ */
 static void C2_FRAME_PACKER_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
@@ -166,11 +177,11 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
     static isr_printer_state_t isr_printer_state = START_FRAME;
     static uint8_t n = 0;
 
-    gpioWrite(LED1, ON);
+    gpioWrite(LED1, ON);       // Para Debug
 
     switch (isr_printer_state)
     {
-    case START_FRAME:
+    case START_FRAME:                                               // Se imprime el caracter de comienzo de paquete
         if (uartTxReady(printer_resources->uart) && (0 == n)) {
             uartTxWrite(printer_resources->uart, START_OF_MESSAGE);
             isr_printer_state = PRINT_FRAME;
@@ -178,25 +189,26 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
         break;
 
     case PRINT_FRAME:
-        if(n < printer_resources->raw_frame.data_size - 1) {
+        while(n < printer_resources->raw_frame.data_size - 1) {     // Se imprime el contenido del paquete
             if (uartTxReady(printer_resources->uart)) {
                 uartTxWrite(printer_resources->uart, printer_resources->raw_frame.data[n]);
                 n++;
-            }     
+            }   
+            else break;  
         }  
-        if(n == printer_resources->raw_frame.data_size - 1) {
+        if(n == printer_resources->raw_frame.data_size - 1) {       // Si es el ultimo caracter del paquete se manda a imprimir el fin de paquete
             isr_printer_state = LAST_FRAME_CHAR;
         }
         break;
 
-    case LAST_FRAME_CHAR:
+    case LAST_FRAME_CHAR:                                           // Se imprime el caracter de fin de paquete
         if(uartTxReady(printer_resources->uart)) {   
             uartTxWrite(printer_resources->uart, END_OF_MESSAGE);  
             isr_printer_state = END_OF_FRAME;
         }    
         break;
 
-    case END_OF_FRAME:
+    case END_OF_FRAME:                                              // Se deshalibilita la interrupcion de Tx de la Uart y se libera el bloque del pool de memoria
         uartCallbackClr( printer_resources->uart, UART_TRANSMITER_FREE);
         UBaseType_t uxSavedInterruptStatus;
         uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
@@ -210,7 +222,7 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
         break;
     }
 
-    gpioWrite(LED1, OFF);
+    gpioWrite(LED1, OFF);       // Para Debug
 }
 
 

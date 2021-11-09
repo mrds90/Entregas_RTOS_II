@@ -49,7 +49,7 @@ typedef struct {
  * @param UARTRxCallBackFunc
  * @param parameter 
  */
-static void C2_FRAME_CAPTURE_UartInit(void *UARTRxCallBackFunc, void *parameter);
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
@@ -74,13 +74,13 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
-    C2_FRAME_CAPTURE_UartInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture);
+    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture);
     return (void *) &frame_capture->buffer_handler;
 }
 
 /*=====[Implementations of private functions]================================*/
 
-static void C2_FRAME_CAPTURE_UartInit(void *UARTRxCallBackFunc, void *parameter) {
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
    frame_capture_t *frame_capture = (frame_capture_t *) parameter;
    uartConfig(frame_capture->uart, 115200);
    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTRxCallBackFunc, parameter);
