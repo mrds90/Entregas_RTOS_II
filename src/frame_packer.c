@@ -39,6 +39,13 @@ typedef struct {
     uartMap_t uart;
 } frame_printer_resources_t;
 
+typedef enum {
+    START_FRAME,
+    PRINT_FRAME,
+    LAST_FRAME_CHAR,
+    END_OF_FRAME,
+} isr_printer_state_t;
+
 /*=====[Definitions of private variables]=============================*/
 
 /*=====[Prototypes (declarations) of private functions]======================*/
@@ -135,23 +142,15 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
 	while(TRUE) {
         // Wait for message
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-        // TODO: Volver a armar el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
+        printer_isr.raw_frame.data = frame_print.data;
         uint8_t crc = crc8_calc(0, frame_print.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_print.data_size) - CHARACTER_SIZE_CRC - 1);
-        snprintf(frame_print.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X",  frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
-        // Enviar el paquete a la capa de transmision C1
-        printer_isr.raw_frame = frame_print;
-        
-        //uartWriteByte(uart, START_OF_MESSAGE);
-        //uartWriteString(uart, frame_print.data);    // Print the frame
-        //uartWriteByte(uart, END_OF_MESSAGE);
-        //uartWriteString(uart, "\n");
+        // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
+        snprintf(printer_isr.raw_frame.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X", frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
+        printer_isr.raw_frame.data_size = PRINT_FRAME_SIZE(frame_print.data_size);
 
+        // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
         C2_FRAME_PACKER_UartTxInit(C2_FRAME_PACKER_UartTxISR, (void*) &printer_isr);
         uartSetPendingInterrupt(uart);
-
-        // taskENTER_CRITICAL();
-        // QMPool_put(buffer_handler_print->pool, frame_print.data - CHARACTER_BEFORE_DATA_SIZE); //< Free the memory
-        // taskEXIT_CRITICAL();
     }
 }
 
@@ -164,26 +163,51 @@ static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter
 
 static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
     frame_printer_resources_t *printer_resources = (frame_printer_resources_t *) parameter;
+    static isr_printer_state_t isr_printer_state = START_FRAME;
+    static uint8_t n = 0;
 
     gpioWrite(LED1, ON);
 
-    if (*(printer_resources->raw_frame.data) != '\0') {
-        while(*(printer_resources->raw_frame.data) != '\0') {
+    switch (isr_printer_state)
+    {
+    case START_FRAME:
+        if (uartTxReady(printer_resources->uart) && (0 == n)) {
+            uartTxWrite(printer_resources->uart, START_OF_MESSAGE);
+            isr_printer_state = PRINT_FRAME;
+        }
+        break;
+
+    case PRINT_FRAME:
+        if(n < printer_resources->raw_frame.data_size - 1) {
             if (uartTxReady(printer_resources->uart)) {
-                uartTxWrite(printer_resources->uart, *(printer_resources->raw_frame.data++));
-            } 
-            else {
-                break;
-            }        
+                uartTxWrite(printer_resources->uart, printer_resources->raw_frame.data[n]);
+                n++;
+            }     
+        }  
+        if(n == printer_resources->raw_frame.data_size - 1) {
+            isr_printer_state = LAST_FRAME_CHAR;
         }
-        if (*(printer_resources->raw_frame.data) == '\0') {
-            //uartClearPendingInterrupt(frame_capture->uart);
-            uartCallbackClr( printer_resources->uart, UART_TRANSMITER_FREE);
-            UBaseType_t uxSavedInterruptStatus;
-            uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(printer_resources->pool, printer_resources->raw_frame.data); //< Se libera el bloque del pool de memoria
-            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);                 
-        }
+        break;
+
+    case LAST_FRAME_CHAR:
+        if(uartTxReady(printer_resources->uart)) {   
+            uartTxWrite(printer_resources->uart, END_OF_MESSAGE);  
+            isr_printer_state = END_OF_FRAME;
+        }    
+        break;
+
+    case END_OF_FRAME:
+        uartCallbackClr( printer_resources->uart, UART_TRANSMITER_FREE);
+        UBaseType_t uxSavedInterruptStatus;
+        uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+        QMPool_put(printer_resources->pool, printer_resources->raw_frame.data - CHARACTER_BEFORE_DATA_SIZE); //< Se libera el bloque del pool de memoria
+        taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);  
+        n = 0;        
+        isr_printer_state = START_FRAME;    
+        break;
+    
+    default:
+        break;
     }
 
     gpioWrite(LED1, OFF);
