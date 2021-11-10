@@ -32,19 +32,19 @@ typedef struct {
     frame_buffer_handler_t *buffer_handler;
     uartMap_t uart;
 } frame_packer_resources_t;
-
-typedef struct {
-    QMPool *pool;
-    frame_t raw_frame;
-    uartMap_t uart;
-} frame_printer_resources_t;
-
 typedef enum {
     START_FRAME,
     PRINT_FRAME,
     LAST_FRAME_CHAR,
     END_OF_FRAME,
 } isr_printer_state_t;
+typedef struct {
+    QMPool *pool;
+    frame_t transmit_frame;
+    uartMap_t uart;
+    uint8_t buff_ind;
+    isr_printer_state_t isr_printer_state;    
+} frame_printer_resources_t;
 
 /*=====[Definitions of private variables]=============================*/
 
@@ -151,13 +151,16 @@ static void C2_FRAME_PACKER_PrinterTask(void* taskParmPtr) {
 
 	// ----- Task repeat for ever -------------------------
 	while(TRUE) {
-        // Wait for message
+        // Se espera a que llegue el paquete procesado
         xQueueReceive(buffer_handler_print->queue, &frame_print, portMAX_DELAY);
-        printer_isr.raw_frame.data = frame_print.data;
+        printer_isr.transmit_frame.data = frame_print.data;
+        // Se calcula el CRC del paquete procesado
         uint8_t crc = crc8_calc(0, frame_print.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_print.data_size) - CHARACTER_SIZE_CRC - 1);
         // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-        snprintf(printer_isr.raw_frame.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X", frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
-        printer_isr.raw_frame.data_size = PRINT_FRAME_SIZE(frame_print.data_size);
+        snprintf(printer_isr.transmit_frame.data, PRINT_FRAME_SIZE(frame_print.data_size), "%s%2X", frame_print.data - CHARACTER_SIZE_ID * sizeof(char), crc);
+        printer_isr.transmit_frame.data_size = PRINT_FRAME_SIZE(frame_print.data_size);
+        printer_isr.buff_ind = 0;
+        printer_isr.isr_printer_state = START_FRAME;
 
         // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
         C2_FRAME_PACKER_UartTxInit(C2_FRAME_PACKER_UartTxISR, (void*) &printer_isr);
@@ -174,37 +177,35 @@ static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter
 
 static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
     frame_printer_resources_t *printer_resources = (frame_printer_resources_t *) parameter;
-    static isr_printer_state_t isr_printer_state = START_FRAME;
-    static uint8_t n = 0;
 
     gpioWrite(LED1, ON);       // Para Debug
 
-    switch (isr_printer_state)
+    switch (printer_resources->isr_printer_state)
     {
     case START_FRAME:                                               // Se imprime el caracter de comienzo de paquete
-        if (uartTxReady(printer_resources->uart) && (0 == n)) {
+        if (uartTxReady(printer_resources->uart) && (0 == printer_resources->buff_ind)) {
             uartTxWrite(printer_resources->uart, START_OF_MESSAGE);
-            isr_printer_state = PRINT_FRAME;
+            printer_resources->isr_printer_state = PRINT_FRAME;
         }
         break;
 
     case PRINT_FRAME:
-        while(n < printer_resources->raw_frame.data_size - 1) {     // Se imprime el contenido del paquete
+        while(printer_resources->buff_ind < printer_resources->transmit_frame.data_size - 1) {     // Se imprime el contenido del paquete
             if (uartTxReady(printer_resources->uart)) {
-                uartTxWrite(printer_resources->uart, printer_resources->raw_frame.data[n]);
-                n++;
+                uartTxWrite(printer_resources->uart, printer_resources->transmit_frame.data[printer_resources->buff_ind]);
+                printer_resources->buff_ind++;
             }   
             else break;  
         }  
-        if(n == printer_resources->raw_frame.data_size - 1) {       // Si es el ultimo caracter del paquete se manda a imprimir el fin de paquete
-            isr_printer_state = LAST_FRAME_CHAR;
+        if(printer_resources->buff_ind == printer_resources->transmit_frame.data_size - 1) {       // Si es el ultimo caracter del paquete se manda a imprimir el fin de paquete
+            printer_resources->isr_printer_state = LAST_FRAME_CHAR;
         }
         break;
 
     case LAST_FRAME_CHAR:                                           // Se imprime el caracter de fin de paquete
         if(uartTxReady(printer_resources->uart)) {   
             uartTxWrite(printer_resources->uart, END_OF_MESSAGE);  
-            isr_printer_state = END_OF_FRAME;
+            printer_resources->isr_printer_state = END_OF_FRAME;
         }    
         break;
 
@@ -212,10 +213,8 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
         uartCallbackClr( printer_resources->uart, UART_TRANSMITER_FREE);
         UBaseType_t uxSavedInterruptStatus;
         uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-        QMPool_put(printer_resources->pool, printer_resources->raw_frame.data - CHARACTER_BEFORE_DATA_SIZE); //< Se libera el bloque del pool de memoria
+        QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data - CHARACTER_BEFORE_DATA_SIZE); //< Se libera el bloque del pool de memoria
         taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);  
-        n = 0;        
-        isr_printer_state = START_FRAME;    
         break;
     
     default:
