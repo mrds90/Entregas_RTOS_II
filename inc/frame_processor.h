@@ -28,8 +28,8 @@ extern "C" {
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
  * @brief Initialize the frame processor
- * 
- * @param uart 
+ *
+ * @param uart
  */
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart);
 

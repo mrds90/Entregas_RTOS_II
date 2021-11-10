@@ -36,7 +36,7 @@ typedef struct {
     frame_t transmit_frame;
     uartMap_t uart;
     uint8_t buff_ind;
-    isr_printer_state_t isr_printer_state;    
+    isr_printer_state_t isr_printer_state;
 } frame_transmit_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/

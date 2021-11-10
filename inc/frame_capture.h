@@ -28,11 +28,11 @@ extern "C" {
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
  * @brief Initializes the frame capture
- * 
- * @param pool* 
- * @param uart 
+ *
+ * @param pool*
+ * @param uart
  */
-void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
+void*C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
