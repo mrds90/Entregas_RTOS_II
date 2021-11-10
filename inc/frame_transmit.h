@@ -1,20 +1,18 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 31/10/2021
+ * Date: 10/11/2021
  * Version: 1.1
  *===========================================================================*/
 
 /*=====[Avoid multiple inclusion - begin]====================================*/
 
-#ifndef __FRAME_CLASS_H__
-#define __FRAME_CLASS_H__
+#ifndef __FRAME_TRANSMIT_H__
+#define __FRAME_TRANSMIT_H__
 
 /*=====[Inclusions of public function dependencies]==========================*/
 
-#include "sapi.h"
-#include "qmpool.h"
-#include "queue.h"
+#include "frame_class.h"
 
 /*=====[C++ - begin]=========================================================*/
 
@@ -23,27 +21,36 @@ extern "C" {
 #endif
 
 /*=====[Definition macros of public constants]===============================*/
-#define MAX_BUFFER_SIZE         200
-#define CHARACTER_SIZE_ID       4
-#define CHARACTER_SIZE_CRC      2
-#define QUEUE_SIZE              7
-#define START_OF_MESSAGE        '('
-#define END_OF_MESSAGE          ')'
-/*=====[ Definitions of public data types ]==================================*/
 
-typedef struct {
-    char *data;
-    uint8_t data_size;
-} frame_t;
+
+/*=====[ Definitions of public data types ]==================================*/
+typedef enum {
+    START_FRAME,
+    PRINT_FRAME,
+    LAST_FRAME_CHAR,
+    END_OF_FRAME,
+} isr_printer_state_t;
 
 typedef struct {
     QMPool *pool;
-    QueueHandle_t queue;
-} frame_buffer_handler_t;
+    frame_t transmit_frame;
+    uartMap_t uart;
+    uint8_t buff_ind;
+    isr_printer_state_t isr_printer_state;    
+} frame_transmit_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
+/**
+ * @brief Inicia una transmision de datos con interrupciones
+ *
+ *
+ * @param frame_transmit_t* puntero a la estructura con los recursos para imprimir. uart, pool y frame deben estar inicializados
+ */
+// void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
+
+void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit);
 
 /*=====[C++ - end]===========================================================*/
 
@@ -53,4 +60,4 @@ typedef struct {
 
 /*=====[Avoid multiple inclusion - end]======================================*/
 
-#endif /* __FRAME_CLASS_H__ */
+#endif /* __FRAME_TRANSMIT_H__ */
