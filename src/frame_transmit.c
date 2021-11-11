@@ -25,7 +25,7 @@
 
 static void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
-static void C2_FRAME_PACKER_UartTxISR(void *parameter);
+static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
@@ -33,7 +33,7 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter);
 void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
     frame_transmit->buff_ind = 0;
     frame_transmit->isr_printer_state = START_FRAME;
-    C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_PACKER_UartTxISR, (void *) frame_transmit);
+    C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_transmit);
     uartSetPendingInterrupt(frame_transmit->uart);
 }
 
@@ -45,10 +45,8 @@ static void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *paramet
 
 /*=====[Implementations of interrupt functions]==============================*/
 
-static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
+static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
-
-    gpioWrite(LED1, ON);       // Para Debug
 
     switch (printer_resources->isr_printer_state) {
         case START_FRAME:                                           // Se imprime el caracter de comienzo de paquete
@@ -90,5 +88,4 @@ static void C2_FRAME_PACKER_UartTxISR(void *parameter) {
             break;
     }
 
-    gpioWrite(LED1, OFF);       // Para Debug
 }

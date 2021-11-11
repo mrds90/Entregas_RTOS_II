@@ -66,7 +66,7 @@ static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter
  *
  * @param parameter QMPool*, frame_t y Uart inicializados.
  */
-static void C2_FRAME_PACKER_UartTxISR(void *parameter);
+static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
