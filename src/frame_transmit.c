@@ -25,7 +25,7 @@
 
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
-__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
+static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
@@ -38,7 +38,7 @@ void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
 }
 
 /*=====[Implementations of private functions]================================*/
-static void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
+__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
     uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter);
 }

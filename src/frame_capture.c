@@ -49,7 +49,7 @@ typedef struct {
  * @param UARTRxCallBackFunc
  * @param parameter
  */
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
+__STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
@@ -60,11 +60,11 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
 
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 
-static uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
+__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 
 /*=====[Implementations of public functions]=================================*/
 
-void*C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
+void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;

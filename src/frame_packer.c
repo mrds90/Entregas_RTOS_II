@@ -66,7 +66,7 @@ __STATIC_FORCEINLINE void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, v
  *
  * @param parameter QMPool*, frame_t y Uart inicializados.
  */
-__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
+static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 
