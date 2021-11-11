@@ -16,11 +16,11 @@
 #include <ctype.h>
 
 /*=====[Definition macros of private constants]==============================*/
-#define CHECK_HEXA(character)  (((character>='A' && character<='F') || (character>='0' && character<='9')) ? TRUE : FALSE)
+#define CHECK_HEXA(character)  (((character >= 'A' && character <= 'F') || (character >= '0' && character <= '9')) ? TRUE : FALSE)
 #define FRAME_MIN_SIZE         (CHARACTER_SIZE_ID + CHARACTER_SIZE_CRC)
 #define A_HEXA_VALUE           (10)
 #define NIBBLE_SIZE            (4)
-#define NIBBLE_BIT(nibble,max_nibbles) (NIBBLE_SIZE*(max_nibbles-(nibble+1)))
+#define NIBBLE_BIT(nibble, max_nibbles) (NIBBLE_SIZE * (max_nibbles - (nibble + 1)))
 /*=====[Definitions of private data types]===================================*/
 typedef enum {
     FRAME_CAPTURE_STATE_IDLE,
@@ -45,25 +45,26 @@ typedef struct {
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
  * @brief Initializes the UART
- * 
- * @param UARTCallBackFunc 
- * @param parameter 
+ *
+ * @param UARTRxCallBackFunc
+ * @param parameter
  */
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter);
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
 /**
  * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
- * 
+ *
  * @param parameter frame_buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
  */
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
- 
+
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 
 static uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
+
 /*=====[Implementations of public functions]=================================*/
 
-void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
+void*C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
@@ -74,24 +75,24 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
-    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void*) frame_capture);
+    C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
     return (void *) &frame_capture->buffer_handler;
 }
 
 /*=====[Implementations of private functions]================================*/
 
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTCallBackFunc, void *parameter) {
-   frame_capture_t *frame_capture = (frame_capture_t *) parameter;
-   uartConfig(frame_capture->uart, 115200);
-   uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTCallBackFunc, parameter);
-   uartInterrupt(frame_capture->uart, true);
+static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
+    frame_capture_t *frame_capture = (frame_capture_t *) parameter;
+    uartConfig(frame_capture->uart, 115200);
+    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTRxCallBackFunc, parameter);
+    uartInterrupt(frame_capture->uart, true);
 }
 
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc) {
     bool_t ret = FALSE;
 
-    if( (CHECK_HEXA( frame.data[frame.data_size] )) && (CHECK_HEXA( frame.data[frame.data_size + 1] ))  ) {
-        if (C2_FRAME_CAPTURE_AsciiHexaToInt(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc ) {
+    if ((CHECK_HEXA(frame.data[frame.data_size])) && (CHECK_HEXA(frame.data[frame.data_size + 1]))) {
+        if (C2_FRAME_CAPTURE_AsciiHexaToInt(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc) {
             ret = TRUE;
         }
     }
@@ -102,20 +103,21 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t digit_qty) {
     uint8_t ret = 0, hex_digit = 0;
 
-    for(uint8_t nibble = 0; nibble < digit_qty; nibble++) {
-        if(isdigit(ascii[nibble])) hex_digit = ascii[nibble] - '0';
+    for (uint8_t nibble = 0; nibble < digit_qty; nibble++) {
+        if (isdigit(ascii[nibble])) hex_digit = ascii[nibble] - '0';
         else hex_digit = ascii[nibble] - 'A' + A_HEXA_VALUE;
-        ret += hex_digit << NIBBLE_BIT(nibble, digit_qty); 
+        ret += hex_digit << NIBBLE_BIT(nibble, digit_qty);
     }
 
     return ret;
 }
+
 /*=====[Implementations of interrupt functions]==============================*/
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
 
-    while(uartRxReady(frame_capture->uart)) {
+    while (uartRxReady(frame_capture->uart)) {
         bool_t error = FALSE;
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
@@ -123,33 +125,34 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
         switch (character) {
             case START_OF_MESSAGE:
-                if(!frame_capture->frame_active) {
+                if (!frame_capture->frame_active) {
                     UBaseType_t uxSavedInterruptStatus;
-                    uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR(); 
-                    frame_capture->raw_frame.data = (char*) QMPool_get(frame_capture->buffer_handler.pool,0);
+                    uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+                    frame_capture->raw_frame.data = (char *) QMPool_get(frame_capture->buffer_handler.pool, 0);
                     taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
                 }
-                if (frame_capture->raw_frame.data != NULL) {                
+                if (frame_capture->raw_frame.data != NULL) {
                     frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
                     frame_capture->frame_active = TRUE;
                     frame_capture->buff_ind = 0;
                     frame_capture->crc = 0;
                 }
                 break;
+
             case END_OF_MESSAGE:
-                if(frame_capture->frame_active) {
+                if (frame_capture->frame_active) {
                     error = TRUE;
-                    if(frame_capture->buff_ind >= FRAME_MIN_SIZE) {
+                    if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {
                         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Es el tamaño de los datos
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
-                            if(frame_capture->buffer_handler.queue != NULL) {
+                            if (frame_capture->buffer_handler.queue != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                                 frame_capture->frame_active = FALSE;
                                 if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
                                     if (px_higher_priority_task_woken == pdTRUE) {
                                         portYIELD_FROM_ISR(px_higher_priority_task_woken);
                                     }
-                                    
+
                                     error = FALSE;
                                 }
                             }
@@ -157,11 +160,13 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     }
                 }
                 break;
+
             default:
                 switch (frame_capture->state) {
                     case FRAME_CAPTURE_STATE_IDLE:
 
                         break;
+
                     case FRAME_CAPTURE_STATE_ID_CHECK:
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
@@ -169,19 +174,21 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                                 frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, 2);
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                             }
-                        } 
+                        }
                         else {
                             error = TRUE;
                         }
                         break;
+
                     case FRAME_CAPTURE_STATE_FRAME:
                         frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
-                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind-2], 1);
+                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - 2], 1);
                         frame_capture->buff_ind++;
                         if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
                             error = TRUE;
                         }
                         break;
+
                     default:
                         error = TRUE;
                         break;
@@ -192,15 +199,10 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         if (error) {
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(frame_capture->buffer_handler.pool, (void*) frame_capture->raw_frame.data);
+            QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
             frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
             frame_capture->frame_active = FALSE;
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
         }
     }
 }
-
-
-
-
-

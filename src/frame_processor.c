@@ -13,7 +13,7 @@
 #include "frame_processor.h"
 #include "frame_packer.h"
 
- 
+
 /*=====[Inclusions of private function dependencies]=========================*/
 
 /*=====[Definition macros of private constants]==============================*/
@@ -38,76 +38,74 @@ typedef struct {
 /*=====[Prototypes (declarations) of private functions]======================*/
 /**
  * @brief Task that process the received data, validate the frame and send formated data to the printer.
- * 
- * @param taskParmPtr 
+ *
+ * @param taskParmPtr
  */
-static void C3_FRAME_PROCESSOR_Task(void* taskParmPtr); 
+static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
+
 /*=====[Implementations of public functions]=================================*/
 
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
-   app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
-   configASSERT(resources != NULL);
-   resources->uart = uart;
-   resources->buffer = (char *)pvPortMalloc(POOL_SIZE_BYTES);
-   configASSERT(resources->buffer != NULL);
+    app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
+    configASSERT(resources != NULL);
+    resources->uart = uart;
+    resources->buffer = (char *)pvPortMalloc(POOL_SIZE_BYTES);
+    configASSERT(resources->buffer != NULL);
 
-   BaseType_t xReturned = xTaskCreate(
-      C3_FRAME_PROCESSOR_Task,
-      (const char *)"Frame Processor",
-      configMINIMAL_STACK_SIZE,
-      (void*) resources,
-      tskIDLE_PRIORITY + 1,
-      NULL
-   );
-   configASSERT(xReturned == pdPASS);
+    BaseType_t xReturned = xTaskCreate(
+        C3_FRAME_PROCESSOR_Task,
+        (const char *)"Frame Processor",
+        configMINIMAL_STACK_SIZE,
+        (void *) resources,
+        tskIDLE_PRIORITY + 1,
+        NULL
+        );
+    configASSERT(xReturned == pdPASS);
 }
+
 /*=====[Implementations of private functions]================================*/
 
-static void C3_FRAME_PROCESSOR_Task(void* taskParmPtr) {
-   app_resources_t *resources = (app_resources_t*) taskParmPtr;
-   uint8_t *memory_pool = resources->buffer;
-   uartMap_t uart = resources->uart;
-   vPortFree(resources);
-   QMPool pool;
+static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
+    app_resources_t *resources = (app_resources_t *) taskParmPtr;
+    uint8_t *memory_pool = resources->buffer;
+    uartMap_t uart = resources->uart;
+    vPortFree(resources);
+    QMPool pool;
 
-   frame_buffer_handler_t app_buffer_handler_receive = {
-      .queue = NULL,
-      .pool = &pool,
-   };
+    frame_buffer_handler_t app_buffer_handler_receive = {
+        .queue = NULL,
+        .pool = &pool,
+    };
 
-   frame_buffer_handler_t app_buffer_handler_send = {
-      .queue = NULL,
-      .pool = &pool,
-   };
+    frame_buffer_handler_t app_buffer_handler_send = {
+        .queue = NULL,
+        .pool = &pool,
+    };
 
-   QMPool_init(&pool, (uint8_t*) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
-   
-   if (app_buffer_handler_receive.queue == NULL) {
-      app_buffer_handler_receive.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-   }
-   configASSERT(app_buffer_handler_receive.queue != NULL);
+    QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
 
-   if (app_buffer_handler_send.queue == NULL) {
-      app_buffer_handler_send.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-   }
-   configASSERT(app_buffer_handler_send.queue != NULL);
+    if (app_buffer_handler_receive.queue == NULL) {
+        app_buffer_handler_receive.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
+    }
+    configASSERT(app_buffer_handler_receive.queue != NULL);
 
-   C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
+    if (app_buffer_handler_send.queue == NULL) {
+        app_buffer_handler_send.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
+    }
+    configASSERT(app_buffer_handler_send.queue != NULL);
 
-   C2_FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
-   
-   frame_t frame;
-   
-   while(TRUE) {
-      xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
-      // Do something with the frame
+    C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
 
-      xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
-   }
+    C2_FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
 
+    frame_t frame;
+
+    while (TRUE) {
+        xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
+        // Do something with the frame
+
+        xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
+    }
 }
 
 /*=====[Implementations of interrupt functions]==============================*/
-
-
-

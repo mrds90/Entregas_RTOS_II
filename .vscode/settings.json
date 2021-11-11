@@ -2,6 +2,7 @@
     "files.associations": {
         "frame_capture.h": "c",
         "frame_class.h": "c",
-        "frame_packer.h": "c"
+        "frame_packer.h": "c",
+        "frame_transmit.h": "c"
     }
 }

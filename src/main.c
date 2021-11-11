@@ -30,15 +30,12 @@
 
 /*=====[Implementations of public functions]=================================*/
 
-int main(void)
-{
-   boardConfig();
+int main(void) {
+    boardConfig();
 
-   C3_FRAME_PROCESSOR_Init(UART_USB);  //Init an instance of the frame processor on UART_USB
-   C3_FRAME_PROCESSOR_Init(UART_GPIO); //Init an instance of the frame processor on UART_GPIO
+    C3_FRAME_PROCESSOR_Init(UART_USB); //Init an instance of the frame processor on UART_USB
+    C3_FRAME_PROCESSOR_Init(UART_GPIO); //Init an instance of the frame processor on UART_GPIO
 
-   vTaskStartScheduler();
-   return 0;
+    vTaskStartScheduler();
+    return 0;
 }
-
-

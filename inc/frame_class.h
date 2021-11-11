@@ -24,8 +24,11 @@ extern "C" {
 
 /*=====[Definition macros of public constants]===============================*/
 #define MAX_BUFFER_SIZE         200
+#define CHARACTER_SIZE_ID       4
 #define CHARACTER_SIZE_CRC      2
 #define QUEUE_SIZE              7
+#define START_OF_MESSAGE        '('
+#define END_OF_MESSAGE          ')'
 /*=====[ Definitions of public data types ]==================================*/
 
 typedef struct {
