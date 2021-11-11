@@ -59,14 +59,14 @@ static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
  * @param UARTRxCallBackFunc
  * @param parameter
  */
-static void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
+__STATIC_FORCEINLINE void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
 /**
  * @brief TX UART ISR function. Esta función se llama cuando el buffer de la UART está vacío.
  *
  * @param parameter QMPool*, frame_t y Uart inicializados.
  */
-static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
+__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 

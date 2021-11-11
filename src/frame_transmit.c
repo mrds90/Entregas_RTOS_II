@@ -23,9 +23,9 @@
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 
-static void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
+__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
-static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
+__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementations of public functions]=================================*/
 

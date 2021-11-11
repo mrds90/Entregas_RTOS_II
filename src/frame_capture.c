@@ -81,7 +81,7 @@ void*C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
 
 /*=====[Implementations of private functions]================================*/
 
-static void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
+__STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
     uartConfig(frame_capture->uart, 115200);
     uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTRxCallBackFunc, parameter);
