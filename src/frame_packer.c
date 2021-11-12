@@ -43,16 +43,16 @@ typedef struct {
  * de la cola, para ser impresos/enviados por la función de callback de
  * la ISR de Tx.
  *
- * @param taskParmPtr puntero a estructura con contexto
+ * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
  */
 static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr);
 
 /**
  * @brief Tarea que recibe contexto (uart, Queue, pool) inicializa el objeto y 
  * espera que le llegue un dato por la cola para enviarlo a la capa 3 para ser
- * procesado
+ * procesado.
  *
- * @param taskParmPtr puntero a una estructura con el contexto de la 
+ * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
  */
 static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
 
@@ -134,8 +134,8 @@ static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
         snprintf(printer_isr.transmit_frame.data, PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size), "%s%2X", printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), crc);
         printer_isr.transmit_frame.data_size = PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size);
 
-        C2_FRAME_TRANSMIT_InitTransmision(&printer_isr);
         // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
+        C2_FRAME_TRANSMIT_InitTransmision(&printer_isr);        
     }
 }
 

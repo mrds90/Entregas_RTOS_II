@@ -62,11 +62,11 @@ typedef struct {
 /**
  * @brief Inicializa la función de captura configurando los parámetros necesarios
  * a las funciones de la capa 1 que maneja la comunicación UART.
+ * @note Se utiliza STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
  * 
  * @param UARTRxCallBackFunc Función callback ISR.
- * @param parameter Puntero a la estructura de contexto de la instancia.
- * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
- * ejecución de las instrucciones. 
+ * @param parameter Puntero a la estructura de contexto de la instancia. 
  */
 __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
@@ -81,22 +81,22 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
 /**
  * @brief Función para validar CRC. Valida que sea un caracter ASCII que represente
  * hexadecimal y luego compara el CRC calculado con el recibido.
+ * @note Se utiliza STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones. 
  * 
  * @param frame Recibe el puntero a la posición del primer caracter del CRC
  * @param crc   Recibe el CRC calculado
- * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
- * ejecución de las instrucciones.
  */ 
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 
 /**
  * @brief Función que convierte caracteres Ascii que representan Hexadecimales a su
  * valor respectivo de tipo int.
+ * @note Se utiliza STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
  * 
  * @param ascii Recibe el puntero a la posición del primer caracter del ascii
  * @param n     Cantidad de valores a ser convertidos
- * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
- * ejecución de las instrucciones.
  */ 
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 

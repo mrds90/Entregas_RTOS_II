@@ -22,18 +22,19 @@ extern "C" {
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
- * @brief Recibe el contexto necesario para inciar la tarea que envía los datos por Tx. Se envía el contexto 
+ * @brief Inicializa la tarea que prepara los datos a enviar a la capa inferior.
+ * @note  Recibe el contexto necesario para iniciar la tarea que envía los datos por Tx.
  * 
- * @param app_buffer_handler_send  manejador que contiene el contexto (cola y puntero a pool)
- * @param uart  puerto con el que se inicializó la instancia que está imprimiendo los datos.
+ * @param app_buffer_handler_send  Manejador que contiene el contexto (cola y puntero a pool)
+ * @param uart  Puerto con el que se inicializó la instancia que está imprimiendo los datos.
  */
 void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart);
 
 /**
- * @brief Recibe el contexto necesario para  
+ * @brief Inicializa la tarea para recibir los paquetes de la capa inferior.
  * 
- * @param app_buffer_handler_receive 
- * @param uart
+ * @param app_buffer_handler_receive Manejador que contiene el contexto (cola y puntero a pool) 
+ * @param uart Uart por donde se recibirán los datos.
  */
 void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 

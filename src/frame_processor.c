@@ -86,6 +86,7 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
         .pool = &pool,
     };
 
+    // Se inicializa el pool de memoria
     QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
 
     if (app_buffer_handler_receive.queue == NULL) {
@@ -109,7 +110,7 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
         
         // Aquí se procesará la trama según el comando... 
 
-        xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
+        xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);  // Se envia el paquete procesado a la capa inferior
     }
 }
 
