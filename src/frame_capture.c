@@ -37,6 +37,14 @@ typedef enum {
 
 /**
  * @brief Recurso utilizado para almacenar el contexto de la recepción de datos
+ * 
+ * @param buffer_handler puntero a pool y queue
+ * @param raw_frame puntero a char de trama y tamaño de trama
+ * @param uart uart usada en la instancia
+ * @param state MEF de función de recepción de datos
+ * @param frame_active flag que indica si se encuentra activo el procesamiento en recepción de datos
+ * @param buff_ind posición de íncice de recepción
+ * @param crc variable para calculo de crc en recepción
  */
 typedef struct {
     frame_buffer_handler_t buffer_handler;
@@ -63,7 +71,7 @@ typedef struct {
 __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
 /**
- * @brief Función ISR al recibir un dato por UART Rx. Esta función es llamada cuando se recibe
+ * @brief Función que se llama en contexto de interrupción UART Rx, es llamada cuando se recibe
  * un caracter. La acción de procesamiento quedará determinada por la MEF.
  * 
  * @param parameter frame_buffer_handler_t* con QueueHandle_t y un QMPool* incializado
@@ -97,7 +105,8 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_ReceiverTask
     configASSERT(frame_capture != NULL);
-    frame_capture->buff_ind = 0;
+    // inicialización del objeto
+    frame_capture->buff_ind = 0;    
     frame_capture->crc = 0;
     frame_capture->frame_active = FALSE;
     frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
@@ -106,7 +115,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
-    return (void *) &frame_capture->buffer_handler;
+    return (void *) &frame_capture->buffer_handler; // se devuelve cargado en el contexto el puntero al pool y la cola
 }
 
 /*=====[Implementación de funciones privadas]================================*/
@@ -114,7 +123,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
 __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
     uartConfig(frame_capture->uart, 115200);
-    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTRxCallBackFunc, parameter);
+    uartCallbackSet(frame_capture->uart, UART_RECEIVE, UARTRxCallBackFunc, parameter); // Función de capa 1 (SAPI) de atención a la interrupción. 
     uartInterrupt(frame_capture->uart, true);
 }
 
@@ -160,7 +169,8 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
                     frame_capture->raw_frame.data = (char *) QMPool_get(frame_capture->buffer_handler.pool, 0);
                     taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
-                }
+                } // si frame_active = 1 se estaba procesando dato válido, pero con el SOM se reinicia sobre el mismo pool
+
                 if (frame_capture->raw_frame.data != NULL) {
                     frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
                     frame_capture->frame_active = TRUE;
@@ -170,15 +180,16 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                 break;
 
             case END_OF_MESSAGE:
-                if (frame_capture->frame_active) {
+                if (frame_capture->frame_active) { // solo se procesa si se encontraba procesando datos válidos
                     error = TRUE;
-                    if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {
-                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Es el tamaño de los datos
+                    if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {  // se previene un EOM en ID o sin CRC
+                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Se toma el tamaño de datos sin CRC
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
                             if (frame_capture->buffer_handler.queue != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                                 frame_capture->frame_active = FALSE;
                                 if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
+                                    // Se envía la cola de FRAME_PACKER para ser empaquetado y enviado a la capa 3
                                     if (px_higher_priority_task_woken == pdTRUE) {
                                         portYIELD_FROM_ISR(px_higher_priority_task_woken);
                                     }
@@ -228,7 +239,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         if (error) {
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
+            QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data); // Ante un error en adquisición libero pool
             frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
             frame_capture->frame_active = FALSE;
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);

@@ -22,6 +22,7 @@
 #define CHARACTER_SIZE_CMD               1
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
+#define CHARACTER_END_OF_PACKAGE         '\0'
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 #define FAKE_CRC                         "1B"
 /*=====[Definición de tipos de datos privados]================================*/
@@ -59,7 +60,7 @@ static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
 /*=====[Implementación de funciones públicas]=================================*/
 
 void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
-    frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
+    frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t)); // se libera al iniciar la tarea C2_FRAME_PACKER_ReceiverTask
     configASSERT(frame_packer_resources != NULL);
     frame_packer_resources->uart = uart;
     frame_packer_resources->buffer_handler = app_buffer_handler_receive;
@@ -75,7 +76,7 @@ void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_rec
 }
 
 void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
-    frame_packer_resources_t *printer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
+    frame_packer_resources_t *printer_resources = pvPortMalloc(sizeof(frame_packer_resources_t)); // se libera al iniciar la tarea C2_FRAME_PACKER_PrinterTask
     configASSERT(printer_resources != NULL);
     printer_resources->uart = uart;
     printer_resources->buffer_handler = app_buffer_handler_send;
@@ -105,12 +106,11 @@ static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr) {
     frame_t frame_app;
 
     while (TRUE) {
-        xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY);
-        // Chequear que tanto los caracteres del ID como del CRC esten en mayusculas, de otro modo el paquete seria invalido
+        xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY); //Recibe luego de un EOM en frame_capture
         frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
         frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
-        frame_app.data[frame_app.data_size] = '\0';
-        xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY);
+        frame_app.data[frame_app.data_size] = CHARACTER_END_OF_PACKAGE;
+        xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY); // Se envían datos empaquetados a capa 3 para ser procesados
     }
 }
 

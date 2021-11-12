@@ -57,7 +57,7 @@ void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
 /*=====[Implementación de funciones privadas]================================*/
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
-    uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter);
+    uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
 }
 
 /*=====[Implementación de funciones de interrupción]==============================*/
@@ -97,7 +97,7 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
             uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data - CHARACTER_BEFORE_DATA_SIZE); //< Se libera el bloque del pool de memoria
+            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data - CHARACTER_BEFORE_DATA_SIZE); // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
             break;
 

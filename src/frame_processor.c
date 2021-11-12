@@ -105,7 +105,7 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     frame_t frame;
 
     while (TRUE) {
-        xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
+        xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY); //Se recibe luego de ser empaquetado por C2_FRAME_PACKER_ReceiverTask
         
         // Aquí se procesará la trama según el comando... 
 
