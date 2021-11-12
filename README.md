@@ -49,7 +49,30 @@ En la primera etapa de este trabajo práctico se decide utilizar un esquema de t
 
 Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se optaría por un esquema de tipo **Heap1** para poder tener un sistema determinista; en caso de no tener suficiente memoria para resolver el TP se elijiría **Heap5**.
 
-TODO: Tabla de referencia a requisitos
+| Código de requerimiento | Referencia al tratamiento |
+|:---: |:---|
+| R_C2_1 | Se justifica en README.md |
+| R_C2_2 | C2_FRAME_CAPTURE_UartRxISR - En condición **if (frame_capture->buff_ind >= MAX_BUFFER_SIZE)** |
+| R_C2_3 | C2_FRAME_CAPTURE_UartRxISR - Se utiliza switch-case para decidir sobre los caracteres recibidos |
+| R_C2_4 | C2_FRAME_CAPTURE_UartRxISR - **switch (character) {case START_OF_MESSAGE:** //rutina de iniciación de paquete... |
+| R_C2_5 | C2_FRAME_CAPTURE_UartRxISR - **char character = uartRxRead(frame_capture->uart)** - //luego se procesa | 
+| R_C2_6 | C2_FRAME_CAPTURE_UartRxISR - En Start Of Message se usa - **frame_capture->raw_frame.data = (char \*) QMPool_get(frame_capture->buffer_handler.pool, 0)**; para dirigir datos a raw_frame.data que apunta al pool |
+| R_C2_7 | C2_FRAME_CAPTURE_UartRxISR - En condición - **if (frame_capture->buff_ind >= MAX_BUFFER_SIZE)** se usa la etiqueta para establecer la máxima cantidad de caracteres |
+| R_C2_8 | Se utiliza algoritmo (Quantum Leaps - QMPool v6.2.0), asignando un tamaño de n bloques de **MAX_BUFFER_SIZE** elementos **uint8_t**. Cada vez que se inicia una trama se realiza un QMPool_get que pide un nuevo bloque en caso de tenerlo disponible. Esto posibilita seguir adquiriendo mientras se procesa tramas previas  |
+| R_C2_9 | C2_FRAME_CAPTURE_UartRxISR - Si la asignación de un bloque de pool devuelve un NULL no se cumple la función para comenzar la adquisición. Queda en estado IDLE, ignorando datos. ¿Debería desactivarse interrupción hasta que se libere memoria? |
+| R_C2_10 | C2_FRAME_CAPTURE_UartRxISR en el estado **FRAME_CAPTURE_STATE_ID_CHECK** valida el ID del inicio de la trama. En la misma función se chequea y valida el CRC recibido cuando se recibe EOM, con la función **C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)** |
+| R_C2_11 | Se utiliza función **C2_FRAME_CAPTURE_AsciiHexaToInt(char \*ascii, uint8_t n)** para transformar CRC en Hexa y poder validarlo |
+| R_C2_12 | C2_FRAME_CAPTURE_UartRxISR - Para chequear ID se utiliza un macro con un operador condicional ternario **CHECK_HEXA(character)**, para CRC se implementa una función **C2_FRAME_CAPTURE_CheckCRC**. Si no se cumplen estas condiciones se vuelve al estado IDLE hasta el comienzo de otra |
+| R_C2_13 | C2_FRAME_TRANSMIT_UartTxISR - utiliza una MEF para agregar el código de comprobación, la identificación y los delimitadores |
+| R_C2_14 | C2_FRAME_TRANSMIT_UartTxISR - es una función de callback que se llama en la interrupción de los datos por UART Tx y es en donde se procesan los bytes salientes |
+| R_C2_15 | C2_FRAME_TRANSMIT_UartTxISR - Luego de enviar el EOM se libera la memoria dinámica utilizada para la transacción **QMPool_put(printer_resources->pool...** |
+| R_C2_16 | C2_FRAME_PACKER_PrinterTask - Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC |
+| R_C2_17 | |
+| R_C2_18 | |
+| R_C2_19 | |
+| R_C2_20 | |
+| R_C2_21 | |
+| R_C2_22 | |
 
 
 ![](./images/frame_trip.gif)
