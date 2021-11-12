@@ -1,11 +1,11 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 31/10/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Inclusion of own header]=============================================*/
+/*=====[Inclusión de cabecera]=============================================*/
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -13,11 +13,10 @@
 #include "frame_capture.h"
 #include "frame_transmit.h"
 
-
 #include "string.h"
 #include "crc8.h"
 
-/*=====[Definition macros of private constants]==============================*/
+/*=====[Definición de macros de constantes privadas]==========================*/
 #define CHARACTER_INDEX_ID               0
 #define CHARACTER_INDEX_CMD              (CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
 #define CHARACTER_SIZE_CMD               1
@@ -25,10 +24,9 @@
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 #define FAKE_CRC                         "1B"
-/*=====[ Definitions of private data types ]===================================*/
+/*=====[Definición de tipos de datos privados]================================*/
 /**
- * @brief Resourse used to store the frame to be packed
- *
+ * @brief Recurso usado para pasar el contexto a las tareas de recepción y envío de datos.
  */
 typedef struct {
     frame_buffer_handler_t *buffer_handler;
@@ -36,39 +34,29 @@ typedef struct {
 } frame_packer_resources_t;
 
 
-/*=====[Definitions of private variables]=============================*/
+/*=====[Definición de variables privadas]====================================*/
 
-/*=====[Prototypes (declarations) of private functions]======================*/
+/*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
- * @brief Create a frame ready to be printed
+ * @brief Tarea que recibe y procesa los datos recibidos desde C3 a través
+ * de la cola, para ser impresos/enviados por la función de callback de
+ * la ISR de Tx.
  *
- * @param taskParmPtr
+ * @param taskParmPtr puntero a estructura con contexto
  */
 static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr);
 
 /**
- * @brief Create a frame ready to be processed
+ * @brief Tarea que recibe contexto (uart, Queue, pool) inicializa el objeto y 
+ * espera que le llegue un dato por la cola para enviarlo a la capa 3 para ser
+ * procesado
  *
- * @param taskParmPtr
+ * @param taskParmPtr puntero a una estructura con el contexto de la 
  */
 static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
 
-/**
- * @brief Inicializa la interrupción de Tx de la UART.
- *
- * @param UARTRxCallBackFunc
- * @param parameter
- */
-__STATIC_FORCEINLINE void C2_FRAME_PACKER_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
-/**
- * @brief TX UART ISR function. Esta función se llama cuando el buffer de la UART está vacío.
- *
- * @param parameter QMPool*, frame_t y Uart inicializados.
- */
-static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
-
-/*=====[Implementations of public functions]=================================*/
+/*=====[Implementación de funciones públicas]=================================*/
 
 void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
     frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t));
@@ -104,7 +92,7 @@ void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send
     configASSERT(xReturned == pdPASS);
 }
 
-/*=====[Implementations of private functions]================================*/
+/*=====[Implementación de funciones privadas]================================*/
 
 static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr) {
     frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t *) taskParmPtr;
@@ -136,7 +124,7 @@ static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
     vPortFree(printer_resources);
 
 
-    // ----- Task repeat for ever -------------------------
+    // ----- Se repite tarea por siempre -------------------------
     while (TRUE) {
         // Se espera a que llegue el paquete procesado
         xQueueReceive(buffer_handler_print->queue, &printer_isr.transmit_frame.data, portMAX_DELAY);
@@ -151,4 +139,4 @@ static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
     }
 }
 
-/*=====[Implementations of interrupt functions]==============================*/
+/*=====[Implementación de funciones de interrupción]==============================*/

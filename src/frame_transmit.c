@@ -1,11 +1,11 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 10/11/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Inclusion of own header]=============================================*/
+/*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
 #include "frame_transmit.h"
@@ -14,20 +14,37 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/*=====[Definition macros of private constants]==============================*/
+/*=====[Definición de macros de constantes privadas]==============================*/
 
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(char))
-/*=====[Definitions of private data types]===================================*/
+/*=====[Definición de tipos de datos privados]===================================*/
 
-/*=====[Definitions of private variables]====================================*/
+/*=====[Definición de variables privadas]====================================*/
 
-/*=====[Prototypes (declarations) of private functions]======================*/
-
+/*=====[Declaración de prototipos de funciones privadas]======================*/
+/**
+ * @brief Inicializa el contexto (puntero, estado, fcion de callback, UART) para
+ * la transmisión de datos por ISR de la Tx de UART.
+ * 
+ * @param UARTTxCallBackFunc puntero para pasar función de callback para atención de interrupción
+ * 
+ * @param parameter puntero a estructura que pasa el contexto para procesar dato de salida.
+ *  
+ * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
+ */
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
+/**
+ * @brief Función de callback para atención de ISR para envío de dato procesado por UART. Utiliza
+ * MEF para decisión a tomar en cada entrada a la función.
+ * 
+ * @param taskParmPtr puntero a estructura de contexto para envio/impresión de información a
+ * a través de UART Tx
+ */
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
-/*=====[Implementations of public functions]=================================*/
+/*=====[Implementación de funciones públicas]=================================*/
 
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
@@ -37,13 +54,13 @@ void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
     uartSetPendingInterrupt(frame_transmit->uart);
 }
 
-/*=====[Implementations of private functions]================================*/
+/*=====[Implementación de funciones privadas]================================*/
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
     uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter);
 }
 
-/*=====[Implementations of interrupt functions]==============================*/
+/*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;

@@ -1,46 +1,41 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 2021/10/31
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Avoid multiple inclusion - begin]====================================*/
+/*=====[Evita la inclusión múltiple - comienzo]==============================*/
 
 #ifndef __FRAME_PROCESSOR_H__
 #define __FRAME_PROCESSOR_H__
 
-/*=====[Inclusions of public function dependencies]==========================*/
+/*=====[Inclusión de dependencias de funciones públicas]=====================*/
 #include "sapi.h"
 
-/*=====[C++ - begin]=========================================================*/
+/*=====[C++ - comienzo]======================================================*/
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*=====[Definition macros of public constants]===============================*/
-
-/*=====[Public function-like macros]=========================================*/
-
-/*=====[Definitions of public data types]====================================*/
-
-/*=====[Prototypes (declarations) of public functions]=======================*/
+/*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
- * @brief Initialize the frame processor
+ * @brief Se inicializa la tarea procesadora de tramas.
  *
- * @param uart
+ * @param uart puerto de comunicación UART pasado desde int main para inicializar
+ * la instancia
  */
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart);
 
-/*=====[Prototypes (declarations) of public interrupt functions]=============*/
+/*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 
-/*=====[C++ - end]===========================================================*/
+/*=====[C++ - fin]===========================================================*/
 
 #ifdef __cplusplus
 }
 #endif
 
-/*=====[Avoid multiple inclusion - end]======================================*/
+/*=====[Evita la inclusión múltiple - fin]===================================*/
 
 #endif /* __FRAME_PROCESSOR_H__ */

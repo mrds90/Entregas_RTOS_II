@@ -1,32 +1,18 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 2021/10/24
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Inclusion of own header]=============================================*/
+/*=====[Inclusión de cabecera]=============================================*/
 
-/*=====[Inclusions of private function dependencies]=========================*/
 #include "FreeRTOS.h"
 #include "FreeRTOSConfig.h"
 #include "task.h"
 
 #include "frame_processor.h"
 
-/*=====[Definition macros of private constants]==============================*/
-
-/*=====[Private function-like macros]========================================*/
-
-/*=====[Definitions of private data types]===================================*/
-
-/*=====[Definitions of external public global variables]=====================*/
-
-/*=====[Definitions of public global variables]==============================*/
-
-/*=====[Definitions of private global variables]=============================*/
-
-/*=====[Prototypes (declarations) of private functions]======================*/
 
 /*=====[Implementations of public functions]=================================*/
 

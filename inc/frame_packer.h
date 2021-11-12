@@ -1,55 +1,51 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 31/10/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Avoid multiple inclusion - begin]====================================*/
+/*=====[Evita la inclusión múltiple - comienzo]==============================*/
 
 #ifndef __FRAME_PACKER_H__
 #define __FRAME_PACKER_H__
 
-/*=====[Inclusions of public function dependencies]==========================*/
+/*=====[Inclusión de dependencias de funciones públicas]=====================*/
 
 #include "frame_class.h"
 
-/*=====[C++ - begin]=========================================================*/
+/*=====[C++ - comienzo]======================================================*/
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*=====[Definition macros of public constants]===============================*/
-
-/*=====[ Definitions of public data types ]==================================*/
-
-/*=====[Prototypes (declarations) of public functions]=======================*/
+/*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
- * @brief Initialize the frame packer printer
- *
- * @param app_buffer_handler_send
- * @param uart
+ * @brief Recibe el contexto necesario para inciar la tarea que envía los datos por Tx. Se envía el contexto 
+ * 
+ * @param app_buffer_handler_send  manejador que contiene el contexto (cola y puntero a pool)
+ * @param uart  puerto con el que se inicializó la instancia que está imprimiendo los datos.
  */
 void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart);
 
 /**
- * @brief Initialize the frame packer receiver
- *
- * @param app_buffer_handler_receive
+ * @brief Recibe el contexto necesario para  
+ * 
+ * @param app_buffer_handler_receive 
  * @param uart
  */
 void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 
 
-/*=====[Prototypes (declarations) of public interrupt functions]=============*/
+/*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 
-/*=====[C++ - end]===========================================================*/
+/*=====[C++ - fin]===========================================================*/
 
 #ifdef __cplusplus
 }
 #endif
 
-/*=====[Avoid multiple inclusion - end]======================================*/
+/*=====[Evita la inclusión múltiple - fin]===================================*/
 
 #endif /* __FRAME_PACKER_H__ */

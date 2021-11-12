@@ -1,29 +1,32 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 10/11/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Avoid multiple inclusion - begin]====================================*/
+/*=====[Evita la inclusión múltiple - comienzo]==============================*/
 
 #ifndef __FRAME_TRANSMIT_H__
 #define __FRAME_TRANSMIT_H__
 
-/*=====[Inclusions of public function dependencies]==========================*/
+/*=====[Inclusión de dependencias de funciones públicas]=====================*/
 
 #include "frame_class.h"
 
-/*=====[C++ - begin]=========================================================*/
+/*=====[C++ - comienzo]======================================================*/
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*=====[Definition macros of public constants]===============================*/
+/*=====[Declaración de prototipos de funciones públicas]=====================*/
 
 
-/*=====[ Definitions of public data types ]==================================*/
+/*=====[Definición de tipos de datos públicos]===============================*/
+/**
+ * @brief Estados de MEF para función de callback de ISR que se encarga de enviar datos por Tx
+ */
 typedef enum {
     START_FRAME,
     PRINT_FRAME,
@@ -31,6 +34,9 @@ typedef enum {
     END_OF_FRAME,
 } isr_printer_state_t;
 
+/**
+ * @brief Recurso para envío de contexto a función que se encarga de enviar por Tx los datos procesados.
+ */
 typedef struct {
     QMPool *pool;
     frame_t transmit_frame;
@@ -39,25 +45,24 @@ typedef struct {
     isr_printer_state_t isr_printer_state;
 } frame_transmit_t;
 
-/*=====[Prototypes (declarations) of public functions]=======================*/
+/*=====[Declaración de prototipos de funciones públicas]=====================*/
+
+
+/*=====[Declaración de prototipos de funciones publicas de interrupción]=====*/
 /**
  * @brief Inicia una transmision de datos con interrupciones
  *
- *
- * @param frame_transmit_t* puntero a la estructura con los recursos para imprimir. uart, pool y frame deben estar inicializados
+ * @param frame_transmit_t* puntero a la estructura con los recursos para 
+ * imprimir. uart, pool y frame deben estar inicializados
  */
-// void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit);
-
-/*=====[Prototypes (declarations) of public interrupt functions]=============*/
-
 void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit);
 
-/*=====[C++ - end]===========================================================*/
+/*=====[C++ - fin]===========================================================*/
 
 #ifdef __cplusplus
 }
 #endif
 
-/*=====[Avoid multiple inclusion - end]======================================*/
+/*=====[Evita la inclusión múltiple - fin]===================================*/
 
 #endif /* __FRAME_TRANSMIT_H__ */

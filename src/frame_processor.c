@@ -1,11 +1,11 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 31/10/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Inclusion of own header]=============================================*/
+/*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -13,42 +13,46 @@
 #include "frame_processor.h"
 #include "frame_packer.h"
 
-
-/*=====[Inclusions of private function dependencies]=========================*/
-
-/*=====[Definition macros of private constants]==============================*/
+/*=====[Definición de macros de constantes privadas]==============================*/
 
 #define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
 #define POOL_PACKET_COUNT     (QUEUE_SIZE)
 #define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
-/*=====[Private function-like macros]========================================*/
 
-/*=====[Definitions of private data types]===================================*/
-
+/*=====[Definición de tipos de datos privados]===================================*/
+/**
+ * @brief Estructura con recursos para pasar a la tarea (puntero para pool y UART utilizada)
+*/
 typedef struct {
     char *buffer;
     uartMap_t uart;
 } app_resources_t;
-/*=====[Definitions of external public global variables]=====================*/
 
-/*=====[Definitions of public global variables]==============================*/
+/*=====[Definición de variables globales publicas exernas]=====================*/
 
-/*=====[Definitions of private global variables]=============================*/
+/*=====[Definición de variables globales públicas]==============================*/
 
-/*=====[Prototypes (declarations) of private functions]======================*/
+/*=====[Definición de variables globales privadas]=============================*/
+
+/*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
- * @brief Task that process the received data, validate the frame and send formated data to the printer.
- *
- * @param taskParmPtr
+ * @brief Esta tarea recibe datos, los procesa, valida la trama (HEX y CRC) y 
+ * lo envía a la función que se encarga de imprimirlos.
+ * 
+ * @param taskParmPtr se recibe un puntero a una estructura cargado con un malloc
+ * a un espacio de memoria reservado para el pool, y tambien la uart con la que se
+ * inicializa la instancia.
  */
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 
-/*=====[Implementations of public functions]=================================*/
+/*=====[Implementación de funciones públicas]=================================*/
 
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
     configASSERT(resources != NULL);
+    
     resources->uart = uart;
+    //se reserva memoria dinámica para estructura de pool de cada instancia.
     resources->buffer = (char *)pvPortMalloc(POOL_SIZE_BYTES);
     configASSERT(resources->buffer != NULL);
 
@@ -63,7 +67,7 @@ void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     configASSERT(xReturned == pdPASS);
 }
 
-/*=====[Implementations of private functions]================================*/
+/*=====[Implementación de funciones privadas]================================*/
 
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     app_resources_t *resources = (app_resources_t *) taskParmPtr;
@@ -102,10 +106,11 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
 
     while (TRUE) {
         xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY);
-        // Do something with the frame
+        
+        // Aquí se procesará la trama según el comando... 
 
         xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);
     }
 }
 
-/*=====[Implementations of interrupt functions]==============================*/
+/*=====[Implementación de funciones de interrupción]==============================*/

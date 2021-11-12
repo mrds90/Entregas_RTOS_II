@@ -1,11 +1,11 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 31/10/2021
- * Version: 1.1
+ * Date: 11/11/2021
+ * Version: 1.2
  *===========================================================================*/
 
-/*=====[Inclusion of own header]=============================================*/
+/*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
 #include "frame_capture.h"
@@ -15,21 +15,29 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/*=====[Definition macros of private constants]==============================*/
+/*=====[Definición de macros de constantes privadas]==============================*/
+
 #define CHECK_HEXA(character)  (((character >= 'A' && character <= 'F') || (character >= '0' && character <= '9')) ? TRUE : FALSE)
 #define FRAME_MIN_SIZE         (CHARACTER_SIZE_ID + CHARACTER_SIZE_CRC)
 #define A_HEXA_VALUE           (10)
 #define NIBBLE_SIZE            (4)
 #define NIBBLE_BIT(nibble, max_nibbles) (NIBBLE_SIZE * (max_nibbles - (nibble + 1)))
-/*=====[Definitions of private data types]===================================*/
+
+/*=====[Definición de tipos de datos privados]===================================*/
+
+/**
+ * @brief Estados de MEF de recepción de datos.
+ */
 typedef enum {
     FRAME_CAPTURE_STATE_IDLE,
     FRAME_CAPTURE_STATE_ID_CHECK,
     FRAME_CAPTURE_STATE_FRAME,
-    FRAME_CAPTURE_STATE_END_OF_MESSAGE,
-    FRAME_CAPTURE_STATE_ERROR,
 } frame_capture_state_t;
 
+
+/**
+ * @brief Recurso utilizado para almacenar el contexto de la recepción de datos
+ */
 typedef struct {
     frame_buffer_handler_t buffer_handler;
     frame_t raw_frame;
@@ -40,32 +48,54 @@ typedef struct {
     uint8_t crc;
 } frame_capture_t;
 
-/*=====[Definitions of private variables]====================================*/
+/*=====[Definición de variables privadas]====================================*/
 
-/*=====[Prototypes (declarations) of private functions]======================*/
+/*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
- * @brief Initializes the UART
- *
- * @param UARTRxCallBackFunc
- * @param parameter
+ * @brief Inicializa la función de captura configurando los parámetros necesarios
+ * a las funciones de la capa 1 que maneja la comunicación UART.
+ * 
+ * @param UARTRxCallBackFunc Función callback ISR.
+ * @param parameter Puntero a la estructura de contexto de la instancia.
+ * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones. 
  */
 __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter);
 
 /**
- * @brief RX UART ISR function. This function is called when a character is received and is stored in the buffer if the start of the message is received.
- *
- * @param parameter frame_buffer_handler_t* with a QueueHandle_t and a QMPool* initialized
+ * @brief Función ISR al recibir un dato por UART Rx. Esta función es llamada cuando se recibe
+ * un caracter. La acción de procesamiento quedará determinada por la MEF.
+ * 
+ * @param parameter frame_buffer_handler_t* con QueueHandle_t y un QMPool* incializado
  */
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter);
 
+/**
+ * @brief Función para validar CRC. Valida que sea un caracter ASCII que represente
+ * hexadecimal y luego compara el CRC calculado con el recibido.
+ * 
+ * @param frame Recibe el puntero a la posición del primer caracter del CRC
+ * @param crc   Recibe el CRC calculado
+ * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
+ */ 
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc);
 
+/**
+ * @brief Función que convierte caracteres Ascii que representan Hexadecimales a su
+ * valor respectivo de tipo int.
+ * 
+ * @param ascii Recibe el puntero a la posición del primer caracter del ascii
+ * @param n     Cantidad de valores a ser convertidos
+ * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
+ */ 
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 
-/*=====[Implementations of public functions]=================================*/
+/*=====[Implementación de funciones públicas]=================================*/
 
 void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
-    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
+    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_ReceiverTask
     configASSERT(frame_capture != NULL);
     frame_capture->buff_ind = 0;
     frame_capture->crc = 0;
@@ -79,7 +109,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     return (void *) &frame_capture->buffer_handler;
 }
 
-/*=====[Implementations of private functions]================================*/
+/*=====[Implementación de funciones privadas]================================*/
 
 __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
@@ -112,7 +142,7 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
     return ret;
 }
 
-/*=====[Implementations of interrupt functions]==============================*/
+/*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
@@ -121,7 +151,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         bool_t error = FALSE;
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-        char character = uartRxRead(frame_capture->uart); //!< Read the character from the UART (function of layer C1)
+        char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
 
         switch (character) {
             case START_OF_MESSAGE:
@@ -161,13 +191,12 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                 }
                 break;
 
-            default:
+            default:                                        //en caso de no ser un SOM o un EOM se implementa una MEF
                 switch (frame_capture->state) {
-                    case FRAME_CAPTURE_STATE_IDLE:
-
+                    case FRAME_CAPTURE_STATE_IDLE:          // se ignoran los datos.
                         break;
 
-                    case FRAME_CAPTURE_STATE_ID_CHECK:
+                    case FRAME_CAPTURE_STATE_ID_CHECK:      // se capturan y validan los datos ID y se comienza a calcular el CRC      
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                             if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
@@ -180,7 +209,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         }
                         break;
 
-                    case FRAME_CAPTURE_STATE_FRAME:
+                    case FRAME_CAPTURE_STATE_FRAME:         // se capturan datos, calcula crc y chequea que no se supere el MAX_BUFFER_SIZE
                         frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
                         frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - 2], 1);
                         frame_capture->buff_ind++;
