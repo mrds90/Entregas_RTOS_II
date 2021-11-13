@@ -28,7 +28,7 @@ typedef struct {
     uartMap_t uart;
 } app_resources_t;
 
-/*=====[Definición de variables globales publicas exernas]=====================*/
+/*=====[Definición de variables globales publicas externas]=====================*/
 
 /*=====[Definición de variables globales públicas]==============================*/
 
