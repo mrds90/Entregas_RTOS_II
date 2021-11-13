@@ -102,7 +102,7 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
+frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_ReceiverTask
     configASSERT(frame_capture != NULL);
     // inicialización del objeto
@@ -115,7 +115,7 @@ void *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
-    return (void *) &frame_capture->buffer_handler; // se devuelve cargado en el contexto el puntero al pool y la cola
+    return (frame_buffer_handler_t *) &frame_capture->buffer_handler; // se devuelve cargado en el contexto el puntero al pool y la cola
 }
 
 /*=====[Implementación de funciones privadas]================================*/

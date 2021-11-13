@@ -38,6 +38,14 @@ void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send
  */
 void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 
+/**
+ * @brief Tarea que recibe contexto (uart, Queue, pool) inicializa el objeto y 
+ * espera que le llegue un dato por la cola para enviarlo a la capa 3 para ser
+ * procesado.
+ *
+ * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
+ */
+void C2_FRAME_PACKER_ReceiverTask(frame_t *frame, frame_buffer_handler_t *buffer_handler) ;
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 

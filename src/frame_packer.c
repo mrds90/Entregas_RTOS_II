@@ -46,32 +46,17 @@ typedef struct {
  */
 static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr);
 
-/**
- * @brief Tarea que recibe contexto (uart, Queue, pool) inicializa el objeto y 
- * espera que le llegue un dato por la cola para enviarlo a la capa 3 para ser
- * procesado.
- *
- * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
- */
-static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
-
-
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
-    frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t)); // se libera al iniciar la tarea C2_FRAME_PACKER_ReceiverTask
-    configASSERT(frame_packer_resources != NULL);
-    frame_packer_resources->uart = uart;
-    frame_packer_resources->buffer_handler = app_buffer_handler_receive;
-    BaseType_t xReturned = xTaskCreate(
-        C2_FRAME_PACKER_ReceiverTask,
-        (const char *)"Frame Packer",
-        configMINIMAL_STACK_SIZE * 5,
-        (void *)frame_packer_resources,
-        tskIDLE_PRIORITY + 1,
-        NULL
-        );
-    configASSERT(xReturned == pdPASS);
+void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *buffer_handler, uartMap_t uart) {
+    buffer_handler->queue = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue;
+}
+
+void C2_FRAME_PACKER_ReceiverTask(frame_t *frame, frame_buffer_handler_t *buffer_handler) {
+    xQueueReceive(buffer_handler->queue, frame, portMAX_DELAY); //Recibe luego de un EOM en frame_capture
+    frame->data = &frame->data[CHARACTER_INDEX_CMD];
+    frame->data_size = frame->data_size - CHARACTER_SIZE_ID;
+    frame->data[frame->data_size] = CHARACTER_END_OF_PACKAGE;
 }
 
 void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
@@ -94,25 +79,6 @@ void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send
 
 /*=====[Implementación de funciones privadas]================================*/
 
-static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr) {
-    frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t *) taskParmPtr;
-    frame_buffer_handler_t *buffer_handler_app = frame_packer_resources->buffer_handler;
-    uartMap_t uart = frame_packer_resources->uart;
-    frame_buffer_handler_t *buffer_handler_capture = C2_FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
-    vPortFree(frame_packer_resources);
-
-    frame_t raw_frame;
-    frame_t frame_app;
-
-    while (TRUE) {
-        xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY); //Recibe luego de un EOM en frame_capture
-        frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
-        frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
-        frame_app.data[frame_app.data_size] = CHARACTER_END_OF_PACKAGE;
-        xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY); // Se envían datos empaquetados a capa 3 para ser procesados
-    }
-}
-
 static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
     frame_packer_resources_t *printer_resources = (frame_packer_resources_t *) taskParmPtr;
     frame_buffer_handler_t *buffer_handler_print = printer_resources->buffer_handler;
@@ -134,7 +100,7 @@ static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
         printer_isr.transmit_frame.data_size = PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size);
 
         // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
-        C2_FRAME_TRANSMIT_InitTransmision(&printer_isr);        
+        C2_FRAME_TRANSMIT_InitTransmision(&printer_isr);
     }
 }
 

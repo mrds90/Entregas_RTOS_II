@@ -36,9 +36,9 @@ typedef struct {
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
- * @brief Esta tarea recibe datos, los procesa, valida la trama (HEX y CRC) y 
+ * @brief Esta tarea recibe datos, los procesa, valida la trama (HEX y CRC) y
  * lo envía a la función que se encarga de imprimirlos.
- * 
+ *
  * @param taskParmPtr se recibe un puntero a una estructura cargado con un malloc
  * a un espacio de memoria reservado para el pool, y tambien la uart con la que se
  * inicializa la instancia.
@@ -50,7 +50,7 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     app_resources_t *resources = pvPortMalloc(sizeof(app_resources_t));
     configASSERT(resources != NULL);
-    
+
     resources->uart = uart;
     //se reserva memoria dinámica para estructura de pool de cada instancia.
     resources->buffer = (char *)pvPortMalloc(POOL_SIZE_BYTES);
@@ -89,14 +89,11 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     // Se inicializa el pool de memoria
     QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
 
-    if (app_buffer_handler_receive.queue == NULL) {
-        app_buffer_handler_receive.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-    }
-    configASSERT(app_buffer_handler_receive.queue != NULL);
 
     if (app_buffer_handler_send.queue == NULL) {
         app_buffer_handler_send.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
     }
+
     configASSERT(app_buffer_handler_send.queue != NULL);
 
     C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
@@ -106,9 +103,9 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     frame_t frame;
 
     while (TRUE) {
-        xQueueReceive(app_buffer_handler_receive.queue, &frame, portMAX_DELAY); //Se recibe luego de ser empaquetado por C2_FRAME_PACKER_ReceiverTask
-        
-        // Aquí se procesará la trama según el comando... 
+        C2_FRAME_PACKER_ReceiverTask(&frame, &app_buffer_handler_receive);
+
+        // Aquí se procesará la trama según el comando...
 
         xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);  // Se envia el paquete procesado a la capa inferior
     }

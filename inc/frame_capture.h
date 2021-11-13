@@ -32,7 +32,7 @@ extern "C" {
  * @param pool* puntero inicializado utilizado por QMPool
  * @param uart  uart utilizada en la instancia.
  */
-void*C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
+frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
