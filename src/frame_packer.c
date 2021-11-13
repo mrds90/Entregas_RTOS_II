@@ -2,7 +2,7 @@
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 11/11/2021
- * Version: 1.1
+ * Version: 1.2
  *===========================================================================*/
 
 /*=====[Inclusión de cabecera]=============================================*/
@@ -19,7 +19,6 @@
 /*=====[Definición de macros de constantes privadas]==========================*/
 #define CHARACTER_INDEX_ID               0
 #define CHARACTER_INDEX_CMD              (CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
-#define CHARACTER_SIZE_CMD               1
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
 #define CHARACTER_END_OF_PACKAGE         '\0'

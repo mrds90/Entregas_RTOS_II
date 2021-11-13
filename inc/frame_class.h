@@ -2,7 +2,7 @@
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
  * Date: 11/11/2021
- * Version: 1.1
+ * Version: 1.2
  *===========================================================================*/
 
 /*=====[Evita la inclusión múltiple - comienzo]==============================*/
@@ -23,15 +23,24 @@ extern "C" {
 #endif
 
 /*=====[Definiciones de macros de constantes publicas]=======================*/
-#define MAX_BUFFER_SIZE         200
 #define CHARACTER_SIZE_ID       4
 #define CHARACTER_SIZE_CRC      2
+#define CHARACTER_SIZE_CMD      1
 #define QUEUE_SIZE              7
 #define START_OF_MESSAGE        '('
 #define END_OF_MESSAGE          ')'
+
+#define WORD_MAX_SIZE           10
+#define WORD_MAX_QTY            15
+#define UNDERSCORE_MAX_QTY      WORD_MAX_QTY // no se puede al final pero si al principio segun los requerimientos. por lo que puede haber un guion por palabra
+#if ((WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 255)
+    #define MAX_BUFFER_SIZE         (WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
+#else
+    #define MAX_BUFFER_SIZE         200
+#endif
 /*=====[Definiciones de macros de constantes publicas]=======================*/
 /**
- * @brief Estructura usada para atributos de la trama. Puntero-indice y tamaño 
+ * @brief Estructura usada para atributos de la trama. Puntero-indice y tamaño
  */
 typedef struct {
     char *data;
