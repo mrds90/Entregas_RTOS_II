@@ -25,11 +25,11 @@
 /**
  * @brief Inicializa el contexto (puntero, estado, fcion de callback, UART) para
  * la transmisión de datos por ISR de la Tx de UART.
- * 
+ *
  * @param UARTTxCallBackFunc puntero para pasar función de callback para atención de interrupción
- * 
+ *
  * @param parameter puntero a estructura que pasa el contexto para procesar dato de salida.
- *  
+ *
  * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
  * ejecución de las instrucciones.
  */
@@ -38,7 +38,7 @@ __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc,
 /**
  * @brief Función de callback para atención de ISR para envío de dato procesado por UART. Utiliza
  * MEF para decisión a tomar en cada entrada a la función.
- * 
+ *
  * @param taskParmPtr puntero a estructura de contexto para envio/impresión de información a
  * a través de UART Tx
  */
@@ -49,7 +49,9 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
     frame_transmit->buff_ind = 0;
-    frame_transmit->isr_printer_state = START_FRAME;
+    frame_transmit->isr_printer_state = PRINT_FRAME;
+    while (!uartTxReady(frame_transmit->uart)); //Espera a que se libere el buffer de transmisión para mandar el primer caracter
+    uartTxWrite(frame_transmit->uart, START_OF_MESSAGE);
     C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_transmit);
     uartSetPendingInterrupt(frame_transmit->uart);
 }
@@ -65,44 +67,21 @@ __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc,
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
 
-    switch (printer_resources->isr_printer_state) {
-        case START_FRAME:                                           // Se imprime el caracter de comienzo de paquete
-            if (uartTxReady(printer_resources->uart) && (0 == printer_resources->buff_ind)) {
-                uartTxWrite(printer_resources->uart, START_OF_MESSAGE);
-                printer_resources->isr_printer_state = PRINT_FRAME;
-            }
-            break;
 
-        case PRINT_FRAME:
-            while (printer_resources->buff_ind < printer_resources->transmit_frame.data_size - 1) { // Se imprime el contenido del paquete
-                if (uartTxReady(printer_resources->uart)) {
-                    uartTxWrite(printer_resources->uart, printer_resources->transmit_frame.data[printer_resources->buff_ind]);
-                    printer_resources->buff_ind++;
-                }
-                else break;
-            }
-            if (printer_resources->buff_ind == printer_resources->transmit_frame.data_size - 1) {  // Si es el ultimo caracter del paquete se manda a imprimir el fin de paquete
-                printer_resources->isr_printer_state = LAST_FRAME_CHAR;
-            }
-            break;
-
-        case LAST_FRAME_CHAR:                                       // Se imprime el caracter de fin de paquete
-            if (uartTxReady(printer_resources->uart)) {
-                uartTxWrite(printer_resources->uart, END_OF_MESSAGE);
-                printer_resources->isr_printer_state = END_OF_FRAME;
-            }
-            break;
-
-        case END_OF_FRAME:                                          // Se deshalibilita la interrupcion de Tx de la Uart y se libera el bloque del pool de memoria
+    while (uartTxReady(printer_resources->uart)) {         // Se imprime el contenido del paquete
+        if (*printer_resources->transmit_frame.data != '\0') {
+            uartTxWrite(printer_resources->uart, *printer_resources->transmit_frame.data);
+            printer_resources->transmit_frame.data++;
+        }
+        else {
+            uartTxWrite(printer_resources->uart, END_OF_MESSAGE);
             uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data - CHARACTER_BEFORE_DATA_SIZE); // Se libera el bloque del pool de memoria
+            printer_resources->transmit_frame.data -= (printer_resources->transmit_frame.data_size + CHARACTER_BEFORE_DATA_SIZE - 1);
+            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data);         // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
             break;
-
-        default:
-            break;
+        };
     }
-
 }
