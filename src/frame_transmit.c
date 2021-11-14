@@ -67,19 +67,18 @@ __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc,
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
     frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
 
-
-    while (uartTxReady(printer_resources->uart)) {         // Se imprime el contenido del paquete
-        if (*printer_resources->transmit_frame.data != '\0') {
-            uartTxWrite(printer_resources->uart, *printer_resources->transmit_frame.data);
-            printer_resources->transmit_frame.data++;
+    while (uartTxReady(printer_resources->uart)) {                                                       //mientras espacio en buffer de transmisión
+        if (*printer_resources->transmit_frame.data != '\0') {                                           //si hay dato a enviar
+            uartTxWrite(printer_resources->uart, *printer_resources->transmit_frame.data);               //escribe en buffer de transmisión
+            printer_resources->transmit_frame.data++;                                                    //avanza puntero de dato a enviar
         }
         else {
-            uartTxWrite(printer_resources->uart, END_OF_MESSAGE);
-            uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);
+            uartTxWrite(printer_resources->uart, END_OF_MESSAGE);                                        //escribe en buffer de transmisión el fin de mensaje
+            uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);                              //desactiva interrupción UART Tx
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            printer_resources->transmit_frame.data -= (printer_resources->transmit_frame.data_size + CHARACTER_BEFORE_DATA_SIZE - 1);
-            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data);         // Se libera el bloque del pool de memoria
+            printer_resources->transmit_frame.data -= (printer_resources->transmit_frame.data_size - 1); //restaura puntero de dato a enviar al inicio del mensaje
+            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data);                 // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
             break;
         };

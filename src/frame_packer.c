@@ -96,7 +96,8 @@ static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
         // Se calcula el CRC del paquete procesado
         uint8_t crc = crc8_calc(0, printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size) - CHARACTER_SIZE_CRC - 1);
         // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-        snprintf(printer_isr.transmit_frame.data, PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size), "%s%2X", printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), crc);
+        snprintf(printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size), "%s%2X", printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), crc);
+        printer_isr.transmit_frame.data -= CHARACTER_SIZE_ID * sizeof(char);
         printer_isr.transmit_frame.data_size = PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size);
 
         // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
