@@ -26,12 +26,12 @@
  * @brief Inicializa el contexto (puntero, estado, fcion de callback, UART) para
  * la transmisión de datos por ISR de la Tx de UART.
  *
+ * @note STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
+ * ejecución de las instrucciones.
+ * 
  * @param UARTTxCallBackFunc puntero para pasar función de callback para atención de interrupción
  *
  * @param parameter puntero a estructura que pasa el contexto para procesar dato de salida.
- *
- * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
- * ejecución de las instrucciones.
  */
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
@@ -47,40 +47,38 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 /*=====[Implementación de funciones públicas]=================================*/
 
 
-void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
-    frame_transmit->buff_ind = 0;
-    frame_transmit->isr_printer_state = PRINT_FRAME;
-    while (!uartTxReady(frame_transmit->uart)); //Espera a que se libere el buffer de transmisión para mandar el primer caracter
-    uartTxWrite(frame_transmit->uart, START_OF_MESSAGE);
-    C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_transmit);
-    uartSetPendingInterrupt(frame_transmit->uart);
+void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
+    while (!uartTxReady(frame_obj->uart));                                         //Espera a que se libere el buffer de transmisión para mandar el primer caracter
+    uartTxWrite(frame_obj->uart, START_OF_MESSAGE);                                //Envía el caracter de inicio de mensaje
+    C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //Inicializa el contexto para la transmisión de datos por ISR de la Tx de UART
+    uartSetPendingInterrupt(frame_obj->uart);
 }
 
 /*=====[Implementación de funciones privadas]================================*/
 __STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
-    frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
-    uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
+    frame_class_t *frame_obj = (frame_class_t *) parameter;
+    uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
 }
 
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
-    frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
+    frame_class_t *frame_obj = (frame_class_t *) parameter;
 
-    while (uartTxReady(printer_resources->uart)) {                                                       //mientras espacio en buffer de transmisión
-        if (*printer_resources->transmit_frame.data != '\0') {                                           //si hay dato a enviar
-            uartTxWrite(printer_resources->uart, *printer_resources->transmit_frame.data);               //escribe en buffer de transmisión
-            printer_resources->transmit_frame.data++;                                                    //avanza puntero de dato a enviar
+    while (uartTxReady(frame_obj->uart)) {                                          // Mientras haya espacio en el buffer de transmisión
+        if (*frame_obj->frame.data != '\0') {                                       // Si no se ha terminado de imprimir el paquete
+            uartTxWrite(frame_obj->uart, *frame_obj->frame.data);                   // Imprime el caracter
+            frame_obj->frame.data++;                                                // Avanza puntero al siguiente caracter
         }
         else {
-            uartTxWrite(printer_resources->uart, END_OF_MESSAGE);                                        //escribe en buffer de transmisión el fin de mensaje
-            uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);                              //desactiva interrupción UART Tx
+            uartTxWrite(frame_obj->uart, END_OF_MESSAGE);                           // Imprime el caracter de fin de paquete
+            uartCallbackClr(frame_obj->uart, UART_TRANSMITER_FREE);                 // Desactiva interrupción UART Tx
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            printer_resources->transmit_frame.data -= (printer_resources->transmit_frame.data_size - 1); //restaura puntero de dato a enviar al inicio del mensaje
-            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data);                 // Se libera el bloque del pool de memoria
+            frame_obj->frame.data -= (frame_obj->frame.data_size - 1);
+            QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
             break;
-        };
+        }
     }
 }

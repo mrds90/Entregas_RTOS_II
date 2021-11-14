@@ -103,7 +103,7 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
 /*=====[Implementación de funciones públicas]=================================*/
 
 frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
-    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_ReceiverTask
+    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_Receive
     configASSERT(frame_capture != NULL);
     // inicialización del objeto
     frame_capture->buff_ind = 0;    
@@ -211,7 +211,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                             if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
-                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, 2);
+                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC);
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                             }
                         }
@@ -222,7 +222,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
                     case FRAME_CAPTURE_STATE_FRAME:         // se capturan datos, calcula crc y chequea que no se supere el MAX_BUFFER_SIZE
                         frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
-                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - 2], 1);
+                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - CHARACTER_SIZE_CRC], sizeof(char));
                         frame_capture->buff_ind++;
                         if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
                             error = TRUE;

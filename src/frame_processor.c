@@ -73,41 +73,24 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     app_resources_t *resources = (app_resources_t *) taskParmPtr;
     uint8_t *memory_pool = resources->buffer;
     uartMap_t uart = resources->uart;
+
     vPortFree(resources);
     QMPool pool;
+    frame_class_t frame_obj;
+    frame_obj.buffer_handler.pool = &pool;
+    frame_obj.buffer_handler.queue = NULL,
+    frame_obj.frame.data = NULL;
+    frame_obj.frame.data_size = 0;
+    frame_obj.uart = uart;
+    QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
-    frame_buffer_handler_t app_buffer_handler_receive = {
-        .queue = NULL,
-        .pool = &pool,
-    };
-
-    frame_buffer_handler_t app_buffer_handler_send = {
-        .queue = NULL,
-        .pool = &pool,
-    };
-
-    // Se inicializa el pool de memoria
-    QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(uint8_t), POOL_PACKET_SIZE);
-
-
-    if (app_buffer_handler_send.queue == NULL) {
-        app_buffer_handler_send.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-    }
-
-    configASSERT(app_buffer_handler_send.queue != NULL);
-
-    C2_FRAME_PACKER_PrinterInit(&app_buffer_handler_send, uart);
-
-    C2_FRAME_PACKER_ReceiverInit(&app_buffer_handler_receive, uart);
-
-    frame_t frame;
+    C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, uart);
 
     while (TRUE) {
-        C2_FRAME_PACKER_ReceiverTask(&frame, &app_buffer_handler_receive);
+        C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
 
         // Aquí se procesará la trama según el comando...
-
-        xQueueSend(app_buffer_handler_send.queue, &frame, portMAX_DELAY);  // Se envia el paquete procesado a la capa inferior
+        C2_FRAME_PACKER_Print(&frame_obj);
     }
 }
 

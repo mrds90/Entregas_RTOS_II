@@ -66,7 +66,7 @@ Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se 
 | R_C2_13 | C2_FRAME_TRANSMIT_UartTxISR - utiliza una MEF para agregar el código de comprobación, la identificación y los delimitadores |
 | R_C2_14 | C2_FRAME_TRANSMIT_UartTxISR - es una función de callback que se llama en la interrupción de los datos por UART Tx y es en donde se procesan los bytes salientes |
 | R_C2_15 | C2_FRAME_TRANSMIT_UartTxISR - Luego de enviar el EOM se libera la memoria dinámica utilizada para la transacción **QMPool_put(printer_resources->pool...** |
-| R_C2_16 | C2_FRAME_PACKER_PrinterTask - Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC |
+| R_C2_16 | C2_FRAME_PACKER_Print - Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC |
 | R_C2_17 | |
 | R_C2_18 | |
 | R_C2_19 | |

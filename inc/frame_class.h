@@ -55,6 +55,11 @@ typedef struct {
     QueueHandle_t queue;
 } frame_buffer_handler_t;
 
+typedef struct {
+    frame_t frame;
+    frame_buffer_handler_t buffer_handler;
+    uartMap_t uart;
+} frame_class_t;
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
