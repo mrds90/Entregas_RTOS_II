@@ -59,7 +59,7 @@ void C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     BaseType_t xReturned = xTaskCreate(
         C3_FRAME_PROCESSOR_Task,
         (const char *)"Frame Processor",
-        configMINIMAL_STACK_SIZE,
+        configMINIMAL_STACK_SIZE * 3,
         (void *) resources,
         tskIDLE_PRIORITY + 1,
         NULL
