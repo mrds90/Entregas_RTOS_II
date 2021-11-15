@@ -211,7 +211,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
                             if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
-                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC);
+                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC); // Se calcula el CRC de los 2 primeros bytes
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                             }
                         }
@@ -222,7 +222,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
                     case FRAME_CAPTURE_STATE_FRAME:         // se capturan datos, calcula crc y chequea que no se supere el MAX_BUFFER_SIZE
                         frame_capture->raw_frame.data[frame_capture->buff_ind] = character;
-                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - CHARACTER_SIZE_CRC], sizeof(char));
+                        frame_capture->crc = crc8_calc(frame_capture->crc, &frame_capture->raw_frame.data[frame_capture->buff_ind - CHARACTER_SIZE_CRC], sizeof(char));  // Se va calculando el CRC a medida que se van capturando los caracteres, comenzando desde 2 bytes hacia atrás para no tomar los bytes del CRC cuando llegue el ultimo caracter
                         frame_capture->buff_ind++;
                         if (frame_capture->buff_ind >= MAX_BUFFER_SIZE) {
                             error = TRUE;
