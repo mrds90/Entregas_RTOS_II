@@ -38,7 +38,6 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler) {
     buffer_handler->semaphore = xSemaphoreCreateBinary();
     configASSERT(buffer_handler->semaphore != NULL);
-    // xSemaphoreGive(buffer_handler->semaphore);
 }
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
