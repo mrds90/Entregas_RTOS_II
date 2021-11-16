@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /*=====[Definición de macros de constantes públicas]===============================*/
-
+#define CHARACTER_MSG_INDEX         1
 /*=====[Definición de tipos de datos públicos]==================================*/
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/

@@ -36,8 +36,6 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
-    while (!uartTxReady(frame_obj->uart));                                         //Espera a que se libere el buffer de transmisión para mandar el primer caracter
-    uartTxWrite(frame_obj->uart, START_OF_MESSAGE);                                //Envía el caracter de inicio de mensaje
     uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
     uartSetPendingInterrupt(frame_obj->uart);
 }
@@ -59,7 +57,7 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
             uartCallbackClr(frame_obj->uart, UART_TRANSMITER_FREE);                 // Desactiva interrupción UART Tx
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            frame_obj->frame.data -= (frame_obj->frame.data_size - 1);              // Retrocede puntero al inicio del paquete
+            frame_obj->frame.data -= (frame_obj->frame.data_size);         // Retrocede puntero al inicio del paquete
             QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
             break;

@@ -29,6 +29,7 @@ extern "C" {
 #define QUEUE_SIZE              7
 #define START_OF_MESSAGE        '('
 #define END_OF_MESSAGE          ')'
+#define DATA_IND                1
 
 #define WORD_MAX_SIZE           10
 #define WORD_MAX_QTY            15

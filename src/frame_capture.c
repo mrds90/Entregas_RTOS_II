@@ -129,9 +129,10 @@ __STATIC_FORCEINLINE void C2_FRAME_CAPTURE_UartRxInit(void *UARTRxCallBackFunc, 
 
 __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc) {
     bool_t ret = FALSE;
+    frame.data++;   // Se incrementa el puntero a los datos para no tomar el SOM
 
-    if ((CHECK_HEXA(frame.data[frame.data_size])) && (CHECK_HEXA(frame.data[frame.data_size + 1]))) {
-        if (C2_FRAME_CAPTURE_AsciiHexaToInt(&frame.data[frame.data_size], CHARACTER_SIZE_CRC) == crc) {
+    if ((CHECK_HEXA(*( frame.data + frame.data_size ))) && (CHECK_HEXA(*(frame.data + frame.data_size + 1)))) {
+        if (C2_FRAME_CAPTURE_AsciiHexaToInt(frame.data + frame.data_size, CHARACTER_SIZE_CRC) == crc) {
             ret = TRUE;
         }
     }
@@ -175,6 +176,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     frame_capture->state = FRAME_CAPTURE_STATE_ID_CHECK;
                     frame_capture->frame_active = TRUE;
                     frame_capture->buff_ind = 0;
+                    frame_capture->raw_frame.data[frame_capture->buff_ind++] = character; // Se guarda el SOM
                     frame_capture->crc = 0;
                 }
                 break;
@@ -183,11 +185,12 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                 if (frame_capture->frame_active) { // solo se procesa si se encontraba procesando datos válidos
                     error = TRUE;
                     if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {  // se previene un EOM en ID o sin CRC
-                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Se toma el tamaño de datos sin CRC
+                        frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC - 1; // Se toma el tamaño de datos sin CRC y sin SOM
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
                             if (frame_capture->buffer_handler.queue != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                                 frame_capture->frame_active = FALSE;
+                                frame_capture->raw_frame.data++;
                                 if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
                                     // Se envía la cola de FRAME_PACKER para ser empaquetado y enviado a la capa 3
                                     if (px_higher_priority_task_woken == pdTRUE) {
@@ -196,6 +199,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
                                     error = FALSE;
                                 }
+                                frame_capture->raw_frame.data--;
                             }
                         }
                     }
@@ -210,8 +214,8 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     case FRAME_CAPTURE_STATE_ID_CHECK:      // se capturan y validan los datos ID y se comienza a calcular el CRC      
                         if (CHECK_HEXA(character)) {
                             frame_capture->raw_frame.data[frame_capture->buff_ind++] = character;
-                            if (frame_capture->buff_ind == CHARACTER_SIZE_ID) {
-                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data, CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC); // Se calcula el CRC de los 2 primeros bytes
+                            if (frame_capture->buff_ind == CHARACTER_SIZE_ID + 1) {
+                                frame_capture->crc = crc8_calc(frame_capture->crc, frame_capture->raw_frame.data+CHARACTER_MSG_INDEX, CHARACTER_SIZE_ID - CHARACTER_SIZE_CRC); // Se calcula el CRC de los 2 primeros bytes
                                 frame_capture->state = FRAME_CAPTURE_STATE_FRAME;
                             }
                         }
