@@ -21,6 +21,7 @@
 #define CHARACTER_INDEX_CMD              (CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
+#define START_OF_MESSAGE_SIZE            1 * sizeof(char)
 #define CHARACTER_END_OF_PACKAGE         '\0'
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 /*=====[Definición de tipos de datos privados]================================*/
@@ -45,9 +46,10 @@ void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_hand
 void C2_FRAME_PACKER_Print(frame_class_t *frame_obj) {
     uint8_t crc = crc8_calc(0, frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
 
-    snprintf(frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size), "%s%2X", frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), crc); // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
+    snprintf(frame_obj->frame.data + START_OF_MESSAGE_SIZE - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size), "%s%0.2X", frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), crc); // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
     frame_obj->frame.data -= CHARACTER_SIZE_ID * sizeof(char);                  // Se resta el ID al puntero de datos para apuntar al comienzo del paquete
-    frame_obj->frame.data_size = PRINT_FRAME_SIZE(frame_obj->frame.data_size);  // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
+    frame_obj->frame.data[0] = START_OF_MESSAGE;
+    frame_obj->frame.data_size = PRINT_FRAME_SIZE(frame_obj->frame.data_size) + START_OF_MESSAGE_SIZE;  // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
 
 
     C2_FRAME_TRANSMIT_InitTransmision(frame_obj);                               // Se inicializa la transmisión del paquete procesado por la ISR

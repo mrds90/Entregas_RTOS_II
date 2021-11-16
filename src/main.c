@@ -20,7 +20,7 @@ int main(void) {
     boardConfig();
 
     C3_FRAME_PROCESSOR_Init(UART_USB); //Iniciar una instancia de frame_processor en UART_USB
-    C3_FRAME_PROCESSOR_Init(UART_GPIO); //Iniciar una instancia de frame processor on UART_GPIO
+    //C3_FRAME_PROCESSOR_Init(UART_GPIO); //Iniciar una instancia de frame processor on UART_GPIO
 
     vTaskStartScheduler();
     return 0;
