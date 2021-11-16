@@ -78,7 +78,8 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     QMPool pool;
     frame_class_t frame_obj;
     frame_obj.buffer_handler.pool = &pool;
-    frame_obj.buffer_handler.queue = NULL,
+    frame_obj.buffer_handler.queue_receive = NULL,
+    frame_obj.buffer_handler.queue_print = NULL;
     frame_obj.frame.data = NULL;
     frame_obj.frame.data_size = 0;
     frame_obj.uart = uart;

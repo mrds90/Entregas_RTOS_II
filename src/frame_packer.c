@@ -32,11 +32,14 @@
 /*=====[Implementación de funciones públicas]=================================*/
 
 void C2_FRAME_PACKER_Init(frame_buffer_handler_t *buffer_handler, uartMap_t uart) {
-    buffer_handler->queue = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue;
+    buffer_handler->queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue_receive;
+    buffer_handler->queue_print = xQueueCreate(QUEUE_SIZE, sizeof(frame_class_t));
+    configASSERT(buffer_handler->queue_print);
+    C2_FRAME_TRANSMIT_ObjInit(buffer_handler->queue_print);
 }
 
 void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_handler) {
-    xQueueReceive(buffer_handler->queue, frame, portMAX_DELAY);                  //Recibe luego de un EOM en frame_capture
+    xQueueReceive(buffer_handler->queue_receive, frame, portMAX_DELAY);                  //Recibe luego de un EOM en frame_capture
     frame->data = &frame->data[CHARACTER_INDEX_CMD];                             //Se posiciona en el comienzo de los datos y se enmascara el ID
     frame->data_size = frame->data_size - CHARACTER_SIZE_ID;                     //Se descuenta el ID en el tamaño de los datos
     frame->data[frame->data_size] = CHARACTER_END_OF_PACKAGE;                    //Se agrega el '\0' al final de los datos sacando el CRC

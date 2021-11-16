@@ -11,6 +11,7 @@
 #include "frame_transmit.h"
 #include "string.h"
 #include "task.h"
+#include "queue.h"
 #include <stdio.h>
 #include <ctype.h>
 
@@ -32,17 +33,38 @@
  */
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
+static void C2_FRAME_TRANSMIT_Task(void *param);
+
 /*=====[Implementación de funciones públicas]=================================*/
 
+void C2_FRAME_TRANSMIT_ObjInit(QueueHandle_t *queue) {
+    BaseType_t res = xTaskCreate(C2_FRAME_TRANSMIT_Task,
+                                 (const char *)"C2_FRAME_TRANSMIT_Task",
+                                 configMINIMAL_STACK_SIZE,
+                                 (void *) queue,
+                                 tskIDLE_PRIORITY + 1,
+                                 NULL
+                                 );
+    configASSERT(res == pdPASS);
+}
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
-    while (!uartTxReady(frame_obj->uart));                                         //Espera a que se libere el buffer de transmisión para mandar el primer caracter
-    uartTxWrite(frame_obj->uart, START_OF_MESSAGE);                                //Envía el caracter de inicio de mensaje
-    uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
-    uartSetPendingInterrupt(frame_obj->uart);
+    xQueueSend(frame_obj->buffer_handler.queue_print, frame_obj, portMAX_DELAY);
 }
 
 /*=====[Implementación de funciones privadas]================================*/
+static void C2_FRAME_TRANSMIT_Task(void *param) {
+    QueueHandle_t queue = (QueueHandle_t) param;
+    while (1) {
+        frame_class_t frame_obj;
+        if (xQueueReceive(queue, &frame_obj, portMAX_DELAY)) {
+            while (!uartTxReady(frame_obj.uart));                                         //Espera a que se libere el buffer de transmisión para mandar el primer caracter
+            uartTxWrite(frame_obj.uart, START_OF_MESSAGE);                                //Envía el caracter de inicio de mensaje
+            uartCallbackSet(frame_obj.uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) &frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
+            uartSetPendingInterrupt(frame_obj.uart);
+        }
+    }
+}
 
 /*=====[Implementación de funciones de interrupción]==============================*/
 

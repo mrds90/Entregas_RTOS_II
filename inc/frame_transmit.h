@@ -30,6 +30,13 @@ extern "C" {
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]=====*/
 /**
+ * @brief Inicializa el modulo de transmision de frames
+ * 
+ * @param queue 
+ */
+void C2_FRAME_TRANSMIT_ObjInit(QueueHandle_t *queue);
+
+/**
  * @brief Inicia una transmision de datos con interrupciones
  *
  * @param frame_class_t* puntero a la estructura con los recursos para 
