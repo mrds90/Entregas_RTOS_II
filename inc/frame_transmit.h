@@ -36,7 +36,12 @@ extern "C" {
  * imprimir. uart, pool y frame deben estar inicializados
  */
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj);
-
+/**
+ * @brief Inicia los recursos para la transmision de datos
+ * 
+ * @param buffer_handler 
+ */
+void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler);
 /*=====[C++ - fin]===========================================================*/
 
 #ifdef __cplusplus

@@ -87,10 +87,6 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
 
     C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, uart);
 
-    frame_obj.buffer_handler.semaphore = xSemaphoreCreateBinary();
-    configASSERT(frame_obj.buffer_handler.semaphore != NULL);
-    xSemaphoreGive( frame_obj.buffer_handler.semaphore );
-
     while (TRUE) {
         C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
 

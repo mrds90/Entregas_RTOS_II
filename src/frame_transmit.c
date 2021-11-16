@@ -33,13 +33,18 @@
  */
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
-/*=====[Implementación de funciones públicas]=================================*/
 
+/*=====[Implementación de funciones públicas]=================================*/
+void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler) {
+    buffer_handler->semaphore = xSemaphoreCreateBinary();
+    configASSERT(buffer_handler->semaphore != NULL);
+    // xSemaphoreGive(buffer_handler->semaphore);
+}
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
-    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY);
     uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
     uartSetPendingInterrupt(frame_obj->uart);
+    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY); // No avanza si esta enviando un paquete
 }
 
 /*=====[Implementación de funciones privadas]================================*/
