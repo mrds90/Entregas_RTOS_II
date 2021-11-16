@@ -9,6 +9,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "frame_processor.h"
 #include "frame_packer.h"
@@ -31,7 +32,7 @@ typedef struct {
 /*=====[Definición de variables globales publicas externas]=====================*/
 
 /*=====[Definición de variables globales públicas]==============================*/
-
+SemaphoreHandle_t xSemaphoreTx;
 /*=====[Definición de variables globales privadas]=============================*/
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
@@ -86,7 +87,12 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
 
     C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, uart);
 
+    xSemaphoreTx = xSemaphoreCreateBinary();
+    configASSERT(xSemaphoreTx != NULL);
+    xSemaphoreGive( xSemaphoreTx );
+
     while (TRUE) {
+        xSemaphoreTake( xSemaphoreTx, portMAX_DELAY );
         C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
 
         // Aquí se procesará la trama según el comando...

@@ -8,6 +8,8 @@
 /*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
+#include "semphr.h"
+
 #include "frame_transmit.h"
 #include "string.h"
 #include "task.h"
@@ -20,7 +22,7 @@
 /*=====[Definición de tipos de datos privados]===================================*/
 
 /*=====[Definición de variables privadas]====================================*/
-
+extern SemaphoreHandle_t xSemaphoreTx;
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 
 /**
@@ -45,9 +47,11 @@ void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
-    frame_class_t *frame_obj = (frame_class_t *) parameter;
+    frame_class_t *frame_obj = (frame_class_t *) parameter;    
 
     while (uartTxReady(frame_obj->uart)) {                                          // Mientras haya espacio en el buffer de transmisión
+        BaseType_t px_higher_priority_task_woken = pdFALSE;
+
         if (*frame_obj->frame.data != '\0') {                                       // Si no se ha terminado de imprimir el paquete
             uartTxWrite(frame_obj->uart, *frame_obj->frame.data);                   // Imprime el caracter
             frame_obj->frame.data++;                                                // Avanza puntero al siguiente caracter
@@ -60,6 +64,10 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
             frame_obj->frame.data -= (frame_obj->frame.data_size - 1);              // Retrocede puntero al inicio del paquete
             QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+            xSemaphoreGiveFromISR( xSemaphoreTx, &px_higher_priority_task_woken );
+            if (px_higher_priority_task_woken == pdTRUE) {
+                portYIELD_FROM_ISR( px_higher_priority_task_woken );
+            }
             break;
         }
     }
