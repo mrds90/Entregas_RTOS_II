@@ -34,7 +34,7 @@ extern "C" {
  * 
  * @param queue 
  */
-void C2_FRAME_TRANSMIT_ObjInit(QueueHandle_t *queue);
+void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler);
 
 /**
  * @brief Inicia una transmision de datos con interrupciones

@@ -33,9 +33,7 @@
 
 void C2_FRAME_PACKER_Init(frame_buffer_handler_t *buffer_handler, uartMap_t uart) {
     buffer_handler->queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue_receive;
-    buffer_handler->queue_print = xQueueCreate(QUEUE_SIZE, sizeof(frame_class_t));
-    configASSERT(buffer_handler->queue_print);
-    C2_FRAME_TRANSMIT_ObjInit(buffer_handler->queue_print);
+    C2_FRAME_TRANSMIT_ObjInit(buffer_handler);
 }
 
 void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_handler) {

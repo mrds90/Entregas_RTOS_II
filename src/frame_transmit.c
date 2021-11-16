@@ -37,11 +37,13 @@ static void C2_FRAME_TRANSMIT_Task(void *param);
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_TRANSMIT_ObjInit(QueueHandle_t *queue) {
+void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler) {
+    buffer_handler->queue_print = xQueueCreate(QUEUE_SIZE, sizeof(frame_class_t));
+    configASSERT(buffer_handler->queue_print);
     BaseType_t res = xTaskCreate(C2_FRAME_TRANSMIT_Task,
                                  (const char *)"C2_FRAME_TRANSMIT_Task",
                                  configMINIMAL_STACK_SIZE,
-                                 (void *) queue,
+                                 (void *) buffer_handler->queue_print,
                                  tskIDLE_PRIORITY + 1,
                                  NULL
                                  );
