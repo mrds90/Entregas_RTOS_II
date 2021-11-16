@@ -8,6 +8,8 @@
 /*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
+#include "semphr.h"
+
 #include "frame_transmit.h"
 #include "string.h"
 #include "task.h"
@@ -20,89 +22,57 @@
 /*=====[Definición de tipos de datos privados]===================================*/
 
 /*=====[Definición de variables privadas]====================================*/
-
 /*=====[Declaración de prototipos de funciones privadas]======================*/
-/**
- * @brief Inicializa el contexto (puntero, estado, fcion de callback, UART) para
- * la transmisión de datos por ISR de la Tx de UART.
- * 
- * @param UARTTxCallBackFunc puntero para pasar función de callback para atención de interrupción
- * 
- * @param parameter puntero a estructura que pasa el contexto para procesar dato de salida.
- *  
- * @param STATIC_FORCEINLINE para mejorar el rendimiento evitando saltos en la
- * ejecución de las instrucciones.
- */
-__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter);
 
 /**
  * @brief Función de callback para atención de ISR para envío de dato procesado por UART. Utiliza
  * MEF para decisión a tomar en cada entrada a la función.
- * 
+ *
  * @param taskParmPtr puntero a estructura de contexto para envio/impresión de información a
  * a través de UART Tx
  */
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
+
 /*=====[Implementación de funciones públicas]=================================*/
+void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler) {
+    buffer_handler->semaphore = xSemaphoreCreateBinary();
+    configASSERT(buffer_handler->semaphore != NULL);
+}
 
-
-void C2_FRAME_TRANSMIT_InitTransmision(frame_transmit_t *frame_transmit) {
-    frame_transmit->buff_ind = 0;
-    frame_transmit->isr_printer_state = START_FRAME;
-    C2_FRAME_TRANSMIT_UartTxInit(C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_transmit);
-    uartSetPendingInterrupt(frame_transmit->uart);
+void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
+    uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
+    uartSetPendingInterrupt(frame_obj->uart);
+    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY); // No avanza si esta enviando un paquete
 }
 
 /*=====[Implementación de funciones privadas]================================*/
-__STATIC_FORCEINLINE void C2_FRAME_TRANSMIT_UartTxInit(void *UARTTxCallBackFunc, void *parameter) {
-    frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
-    uartCallbackSet(printer_resources->uart, UART_TRANSMITER_FREE, UARTTxCallBackFunc, parameter); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
-}
 
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
-    frame_transmit_t *printer_resources = (frame_transmit_t *) parameter;
+    frame_class_t *frame_obj = (frame_class_t *) parameter;
 
-    switch (printer_resources->isr_printer_state) {
-        case START_FRAME:                                           // Se imprime el caracter de comienzo de paquete
-            if (uartTxReady(printer_resources->uart) && (0 == printer_resources->buff_ind)) {
-                uartTxWrite(printer_resources->uart, START_OF_MESSAGE);
-                printer_resources->isr_printer_state = PRINT_FRAME;
-            }
-            break;
+    while (uartTxReady(frame_obj->uart)) {                                          // Mientras haya espacio en el buffer de transmisión
+        BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-        case PRINT_FRAME:
-            while (printer_resources->buff_ind < printer_resources->transmit_frame.data_size - 1) { // Se imprime el contenido del paquete
-                if (uartTxReady(printer_resources->uart)) {
-                    uartTxWrite(printer_resources->uart, printer_resources->transmit_frame.data[printer_resources->buff_ind]);
-                    printer_resources->buff_ind++;
-                }
-                else break;
-            }
-            if (printer_resources->buff_ind == printer_resources->transmit_frame.data_size - 1) {  // Si es el ultimo caracter del paquete se manda a imprimir el fin de paquete
-                printer_resources->isr_printer_state = LAST_FRAME_CHAR;
-            }
-            break;
-
-        case LAST_FRAME_CHAR:                                       // Se imprime el caracter de fin de paquete
-            if (uartTxReady(printer_resources->uart)) {
-                uartTxWrite(printer_resources->uart, END_OF_MESSAGE);
-                printer_resources->isr_printer_state = END_OF_FRAME;
-            }
-            break;
-
-        case END_OF_FRAME:                                          // Se deshalibilita la interrupcion de Tx de la Uart y se libera el bloque del pool de memoria
-            uartCallbackClr(printer_resources->uart, UART_TRANSMITER_FREE);
+        if (*frame_obj->frame.data != '\0') {                                       // Si no se ha terminado de imprimir el paquete
+            uartTxWrite(frame_obj->uart, *frame_obj->frame.data);                   // Imprime el caracter
+            frame_obj->frame.data++;                                                // Avanza puntero al siguiente caracter
+        }
+        else {                                                                      // Si se ha terminado de imprimir el paquete
+            uartTxWrite(frame_obj->uart, END_OF_MESSAGE);                           // Imprime el caracter de fin de paquete
+            uartCallbackClr(frame_obj->uart, UART_TRANSMITER_FREE);                 // Desactiva interrupción UART Tx
             UBaseType_t uxSavedInterruptStatus;
             uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(printer_resources->pool, printer_resources->transmit_frame.data - CHARACTER_BEFORE_DATA_SIZE); // Se libera el bloque del pool de memoria
+            frame_obj->frame.data -= (frame_obj->frame.data_size - 1);              // Retrocede puntero al inicio del paquete
+            QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+            xSemaphoreGiveFromISR(frame_obj->buffer_handler.semaphore, &px_higher_priority_task_woken);
+            if (px_higher_priority_task_woken == pdTRUE) {
+                portYIELD_FROM_ISR(px_higher_priority_task_woken);
+            }
             break;
-
-        default:
-            break;
+        }
     }
-
 }

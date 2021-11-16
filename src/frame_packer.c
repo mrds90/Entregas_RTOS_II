@@ -21,121 +21,41 @@
 #define CHARACTER_INDEX_CMD              (CHARACTER_INDEX_ID + CHARACTER_SIZE_ID)
 #define CHARACTER_INDEX_DATA             (CHARACTER_INDEX_CMD + CHARACTER_SIZE_CMD)
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
+#define START_OF_MESSAGE_SIZE            1 * sizeof(char)
 #define CHARACTER_END_OF_PACKAGE         '\0'
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
-#define FAKE_CRC                         "1B"
 /*=====[Definición de tipos de datos privados]================================*/
-/**
- * @brief Recurso usado para pasar el contexto a las tareas de recepción y envío de datos.
- */
-typedef struct {
-    frame_buffer_handler_t *buffer_handler;
-    uartMap_t uart;
-} frame_packer_resources_t;
-
 
 /*=====[Definición de variables privadas]====================================*/
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
-/**
- * @brief Tarea que recibe y procesa los datos recibidos desde C3 a través
- * de la cola, para ser impresos/enviados por la función de callback de
- * la ISR de Tx.
- *
- * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
- */
-static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr);
-
-/**
- * @brief Tarea que recibe contexto (uart, Queue, pool) inicializa el objeto y 
- * espera que le llegue un dato por la cola para enviarlo a la capa 3 para ser
- * procesado.
- *
- * @param taskParmPtr Estructura del tipo frame_packer_resources_t.
- */
-static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr);
-
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_PACKER_ReceiverInit(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart) {
-    frame_packer_resources_t *frame_packer_resources = pvPortMalloc(sizeof(frame_packer_resources_t)); // se libera al iniciar la tarea C2_FRAME_PACKER_ReceiverTask
-    configASSERT(frame_packer_resources != NULL);
-    frame_packer_resources->uart = uart;
-    frame_packer_resources->buffer_handler = app_buffer_handler_receive;
-    BaseType_t xReturned = xTaskCreate(
-        C2_FRAME_PACKER_ReceiverTask,
-        (const char *)"Frame Packer",
-        configMINIMAL_STACK_SIZE * 5,
-        (void *)frame_packer_resources,
-        tskIDLE_PRIORITY + 1,
-        NULL
-        );
-    configASSERT(xReturned == pdPASS);
+void C2_FRAME_PACKER_Init(frame_buffer_handler_t *buffer_handler, uartMap_t uart) {
+    buffer_handler->queue = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue;
+    C2_FRAME_TRANSMIT_ObjInit(buffer_handler);
 }
 
-void C2_FRAME_PACKER_PrinterInit(frame_buffer_handler_t *app_buffer_handler_send, uartMap_t uart) {
-    frame_packer_resources_t *printer_resources = pvPortMalloc(sizeof(frame_packer_resources_t)); // se libera al iniciar la tarea C2_FRAME_PACKER_PrinterTask
-    configASSERT(printer_resources != NULL);
-    printer_resources->uart = uart;
-    printer_resources->buffer_handler = app_buffer_handler_send;
+void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_handler) {
+    xQueueReceive(buffer_handler->queue, frame, portMAX_DELAY);                  //Recibe luego de un EOM en frame_capture
+    frame->data = &frame->data[CHARACTER_INDEX_CMD];                             //Se posiciona en el comienzo de los datos y se enmascara el ID
+    frame->data_size = frame->data_size - CHARACTER_SIZE_ID;                     //Se descuenta el ID en el tamaño de los datos
+    frame->data[frame->data_size] = CHARACTER_END_OF_PACKAGE;                    //Se agrega el '\0' al final de los datos sacando el CRC
+}
 
-    BaseType_t xReturned = xTaskCreate(
-        C2_FRAME_PACKER_PrinterTask,
-        (const char *)"Print Function",
-        configMINIMAL_STACK_SIZE * 4,
-        (void *)printer_resources,
-        tskIDLE_PRIORITY + 1,
-        NULL
-        );
+void C2_FRAME_PACKER_Print(frame_class_t *frame_obj) {
+    uint8_t crc = crc8_calc(0, frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
 
-    configASSERT(xReturned == pdPASS);
+    snprintf(frame_obj->frame.data + START_OF_MESSAGE_SIZE - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size), "%s%0.2X", frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), crc); // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
+    frame_obj->frame.data -= CHARACTER_SIZE_ID * sizeof(char);                  // Se resta el ID al puntero de datos para apuntar al comienzo del paquete
+    frame_obj->frame.data[0] = START_OF_MESSAGE;
+    frame_obj->frame.data_size = PRINT_FRAME_SIZE(frame_obj->frame.data_size) + START_OF_MESSAGE_SIZE;  // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
+
+
+    C2_FRAME_TRANSMIT_InitTransmision(frame_obj);                               // Se inicializa la transmisión del paquete procesado por la ISR
 }
 
 /*=====[Implementación de funciones privadas]================================*/
-
-static void C2_FRAME_PACKER_ReceiverTask(void *taskParmPtr) {
-    frame_packer_resources_t *frame_packer_resources = (frame_packer_resources_t *) taskParmPtr;
-    frame_buffer_handler_t *buffer_handler_app = frame_packer_resources->buffer_handler;
-    uartMap_t uart = frame_packer_resources->uart;
-    frame_buffer_handler_t *buffer_handler_capture = C2_FRAME_CAPTURE_ObjInit(buffer_handler_app->pool, uart);
-    vPortFree(frame_packer_resources);
-
-    frame_t raw_frame;
-    frame_t frame_app;
-
-    while (TRUE) {
-        xQueueReceive(buffer_handler_capture->queue, &raw_frame, portMAX_DELAY); //Recibe luego de un EOM en frame_capture
-        frame_app.data = &raw_frame.data[CHARACTER_INDEX_CMD];
-        frame_app.data_size = raw_frame.data_size - CHARACTER_SIZE_ID;
-        frame_app.data[frame_app.data_size] = CHARACTER_END_OF_PACKAGE;
-        xQueueSend(buffer_handler_app->queue, &frame_app, portMAX_DELAY); // Se envían datos empaquetados a capa 3 para ser procesados
-    }
-}
-
-static void C2_FRAME_PACKER_PrinterTask(void *taskParmPtr) {
-    frame_packer_resources_t *printer_resources = (frame_packer_resources_t *) taskParmPtr;
-    frame_buffer_handler_t *buffer_handler_print = printer_resources->buffer_handler;
-    frame_transmit_t printer_isr;
-    printer_isr.pool = buffer_handler_print->pool;
-    printer_isr.uart = printer_resources->uart;;
-
-    vPortFree(printer_resources);
-
-
-    // ----- Se repite tarea por siempre -------------------------
-    while (TRUE) {
-        // Se espera a que llegue el paquete procesado
-        xQueueReceive(buffer_handler_print->queue, &printer_isr.transmit_frame.data, portMAX_DELAY);
-        // Se calcula el CRC del paquete procesado
-        uint8_t crc = crc8_calc(0, printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size) - CHARACTER_SIZE_CRC - 1);
-        // Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC
-        snprintf(printer_isr.transmit_frame.data, PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size), "%s%2X", printer_isr.transmit_frame.data - CHARACTER_SIZE_ID * sizeof(char), crc);
-        printer_isr.transmit_frame.data_size = PRINT_FRAME_SIZE(printer_isr.transmit_frame.data_size);
-
-        // Se habilita la interrupcion para enviar el paquete a la capa de transmision C1
-        C2_FRAME_TRANSMIT_InitTransmision(&printer_isr);        
-    }
-}
 
 /*=====[Implementación de funciones de interrupción]==============================*/
