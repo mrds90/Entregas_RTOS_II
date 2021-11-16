@@ -15,6 +15,7 @@
 #include "sapi.h"
 #include "qmpool.h"
 #include "queue.h"
+#include "semphr.h"
 
 /*=====[C++ - comienzo]======================================================*/
 
@@ -53,6 +54,7 @@ typedef struct {
 typedef struct {
     QMPool *pool;
     QueueHandle_t queue;
+    SemaphoreHandle_t semaphore;
 } frame_buffer_handler_t;
 
 typedef struct {

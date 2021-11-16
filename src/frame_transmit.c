@@ -64,7 +64,7 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
             frame_obj->frame.data -= (frame_obj->frame.data_size - 1);              // Retrocede puntero al inicio del paquete
             QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
-            xSemaphoreGiveFromISR( xSemaphoreTx, &px_higher_priority_task_woken );
+            xSemaphoreGiveFromISR( frame_obj->buffer_handler.semaphore, &px_higher_priority_task_woken );
             if (px_higher_priority_task_woken == pdTRUE) {
                 portYIELD_FROM_ISR( px_higher_priority_task_woken );
             }
