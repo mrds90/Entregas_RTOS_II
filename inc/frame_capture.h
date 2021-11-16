@@ -13,6 +13,7 @@
 /*=====[Inclusión de dependencias de funciones públicas]=====================*/
 
 #include "frame_class.h"
+#include "queue.h"
 
 /*=====[C++ - comienzo]======================================================*/
 
@@ -32,7 +33,7 @@ extern "C" {
  * @param pool* puntero inicializado utilizado por QMPool
  * @param uart  uart utilizada en la instancia.
  */
-frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
+QueueHandle_t C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 

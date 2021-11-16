@@ -32,7 +32,7 @@
 /*=====[Implementación de funciones públicas]=================================*/
 
 void C2_FRAME_PACKER_Init(frame_buffer_handler_t *buffer_handler, uartMap_t uart) {
-    buffer_handler->queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart)->queue_receive;
+    buffer_handler->queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler->pool, uart);
     C2_FRAME_TRANSMIT_ObjInit(buffer_handler);
 }
 
