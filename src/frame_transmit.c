@@ -22,7 +22,6 @@
 /*=====[Definición de tipos de datos privados]===================================*/
 
 /*=====[Definición de variables privadas]====================================*/
-extern SemaphoreHandle_t xSemaphoreTx;
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 
 /**
@@ -38,6 +37,7 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
+    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY);
     uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
     uartSetPendingInterrupt(frame_obj->uart);
 }
@@ -47,7 +47,7 @@ void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
-    frame_class_t *frame_obj = (frame_class_t *) parameter;    
+    frame_class_t *frame_obj = (frame_class_t *) parameter;
 
     while (uartTxReady(frame_obj->uart)) {                                          // Mientras haya espacio en el buffer de transmisión
         BaseType_t px_higher_priority_task_woken = pdFALSE;
@@ -64,9 +64,9 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
             frame_obj->frame.data -= (frame_obj->frame.data_size - 1);              // Retrocede puntero al inicio del paquete
             QMPool_put(frame_obj->buffer_handler.pool, frame_obj->frame.data);      // Se libera el bloque del pool de memoria
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
-            xSemaphoreGiveFromISR( frame_obj->buffer_handler.semaphore, &px_higher_priority_task_woken );
+            xSemaphoreGiveFromISR(frame_obj->buffer_handler.semaphore, &px_higher_priority_task_woken);
             if (px_higher_priority_task_woken == pdTRUE) {
-                portYIELD_FROM_ISR( px_higher_priority_task_woken );
+                portYIELD_FROM_ISR(px_higher_priority_task_woken);
             }
             break;
         }

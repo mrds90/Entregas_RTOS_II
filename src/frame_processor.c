@@ -95,7 +95,6 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
         C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
 
         // Aquí se procesará la trama según el comando...
-        xSemaphoreTake( frame_obj.buffer_handler.semaphore , portMAX_DELAY );
         C2_FRAME_PACKER_Print(&frame_obj);
     }
 }
