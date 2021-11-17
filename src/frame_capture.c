@@ -127,7 +127,7 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
 
     frame_capture->xTimer_time_out = xTimerCreate(
                                             "Timer_Time_Out_Receive",
-                                            RECEIVE_TIME_OUT,
+                                            pdMS_TO_TICKS(RECEIVE_TIME_OUT),
                                             pdFALSE,
                                             ( void * ) frame_capture,
                                             C2_FRAME_CAPTURE_vTimerCallback
@@ -177,11 +177,13 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
 void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
     configASSERT (xTimer);
     frame_capture_t *frame_capture = (frame_capture_t *) pvTimerGetTimerID( xTimer );
+    taskENTER_CRITICAL();   // Se abre sección critica para proteger los datos compartidos
     if( TRUE == frame_capture->frame_active){
-           QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
+        QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
     }
     frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
     frame_capture->frame_active = FALSE;
+    taskEXIT_CRITICAL();    // Se cierra seccion critica
     //uartTxWrite(frame_capture->uart, '9'); para probar si entra con timer = 1s
 }
 
@@ -193,16 +195,15 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &xHigherPriorityTaskWoken )){
-    	/* El comando de reset no fue ejecutado con exito. Tomar acciones apropiadas */
-    }
-
-    
     while (uartRxReady(frame_capture->uart)) {
         bool_t error = FALSE;
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
         char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
+
+        if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &xHigherPriorityTaskWoken )){
+    	    /* El comando de reset no fue ejecutado con exito. Tomar acciones apropiadas */
+        }
 
         switch (character) {
             case START_OF_MESSAGE:
@@ -280,12 +281,14 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         }
 
         if (error) {
-            UBaseType_t uxSavedInterruptStatus;
-            uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data); // Ante un error en adquisición libero pool
-            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-            frame_capture->frame_active = FALSE;
-            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+            if( TRUE == frame_capture->frame_active){
+                UBaseType_t uxSavedInterruptStatus;
+                uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+                QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data); // Ante un error en adquisición libero pool                              
+                taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+                frame_capture->frame_active = FALSE;
+            }
+            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;  
         }
     }
 
