@@ -12,6 +12,7 @@
 #include "string.h"
 #include "task.h"
 #include "crc8.h"
+#include "timers.h"
 #include <stdio.h>
 #include <ctype.h>
 
@@ -22,6 +23,7 @@
 #define A_HEXA_VALUE           (10)
 #define NIBBLE_SIZE            (4)
 #define NIBBLE_BIT(nibble, max_nibbles) (NIBBLE_SIZE * (max_nibbles - (nibble + 1)))
+#define RECEIVE_TIME_OUT        4
 
 /*=====[Definición de tipos de datos privados]===================================*/
 
@@ -48,6 +50,7 @@ typedef enum {
  */
 typedef struct {
     frame_buffer_handler_t buffer_handler;
+    TimerHandle_t xTimer_time_out;
     frame_t raw_frame;
     uartMap_t uart;
     frame_capture_state_t state;
@@ -57,6 +60,7 @@ typedef struct {
 } frame_capture_t;
 
 /*=====[Definición de variables privadas]====================================*/
+
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
@@ -100,6 +104,7 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
  */ 
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 
+void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer);
 /*=====[Implementación de funciones públicas]=================================*/
 
 frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
@@ -114,7 +119,20 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
+    // Se crea el timer de time out
+    frame_capture->xTimer_time_out = xTimerCreate(
+                                            "Timer_Time_Out_Receive",
+                                            RECEIVE_TIME_OUT,
+                                            pdFALSE,
+                                            ( void * ) frame_capture,
+                                            C2_FRAME_CAPTURE_vTimerCallback
+                                            );
+    if ( frame_capture->xTimer_time_out == NULL ){
+        // ERROR_SYSTEM?
+    }
+
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
+
     return (frame_buffer_handler_t *) &frame_capture->buffer_handler; // se devuelve cargado en el contexto el puntero al pool y la cola
 }
 
@@ -151,15 +169,35 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
     return ret;
 }
 
+void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
+    configASSERT (xTimer);
+    frame_capture_t *frame_capture = (frame_capture_t *) pvTimerGetTimerID( xTimer );
+    if( TRUE == frame_capture->frame_active){
+           QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
+    }
+    frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
+    frame_capture->frame_active = FALSE;
+    printf("time out!!!");
+}
+
+
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
+    
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    printf("time out!!!");
+    if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &xHigherPriorityTaskWoken )){
+    	/* El comando de reset no fue ejecutado con exito. Tomar acciones apropiadas */
+    }
 
+    
     while (uartRxReady(frame_capture->uart)) {
         bool_t error = FALSE;
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
+        // start Timer del objeto...
         char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
 
         switch (character) {
@@ -182,6 +220,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
             case END_OF_MESSAGE:
                 if (frame_capture->frame_active) { // solo se procesa si se encontraba procesando datos válidos
                     error = TRUE;
+                    //
                     if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {  // se previene un EOM en ID o sin CRC
                         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Se toma el tamaño de datos sin CRC
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
