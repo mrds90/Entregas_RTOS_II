@@ -104,6 +104,11 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
  */ 
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 
+/**
+ * @brief Función de callback de timer. Devuelve el bloque de pool, desactiva la captura y queda en estado IDLE.
+ *
+ * @param xTimer recibe el Handle del timer del objeto.
+ */
 void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer);
 /*=====[Implementación de funciones públicas]=================================*/
 
@@ -119,7 +124,7 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
-    // Se crea el timer de time out
+
     frame_capture->xTimer_time_out = xTimerCreate(
                                             "Timer_Time_Out_Receive",
                                             RECEIVE_TIME_OUT,
@@ -177,7 +182,7 @@ void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
     }
     frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
     frame_capture->frame_active = FALSE;
-    printf("time out!!!");
+    //uartTxWrite(frame_capture->uart, '9'); para probar si entra con timer = 1s
 }
 
 
@@ -187,7 +192,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    printf("time out!!!");
+
     if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &xHigherPriorityTaskWoken )){
     	/* El comando de reset no fue ejecutado con exito. Tomar acciones apropiadas */
     }
@@ -197,7 +202,6 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         bool_t error = FALSE;
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-        // start Timer del objeto...
         char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
 
         switch (character) {
@@ -283,5 +287,10 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
             frame_capture->frame_active = FALSE;
             taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
         }
+    }
+
+    if( xHigherPriorityTaskWoken != pdFALSE )
+    {
+        /* Llamar a la función de safe-yield de interrupciones.*/
     }
 }
