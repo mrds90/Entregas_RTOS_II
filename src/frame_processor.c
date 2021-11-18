@@ -9,7 +9,6 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
-#include "semphr.h"
 
 #include "frame_processor.h"
 #include "frame_packer.h"

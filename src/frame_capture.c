@@ -184,7 +184,6 @@ void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
     frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
     frame_capture->frame_active = FALSE;
     taskEXIT_CRITICAL();    // Se cierra seccion critica
-    //uartTxWrite(frame_capture->uart, '9'); para probar si entra con timer = 1s
 }
 
 
@@ -238,7 +237,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                                         portYIELD_FROM_ISR(px_higher_priority_task_woken);
                                     }
 
-                                    error = FALSE;
+                                    error = FALSE;          // En caso de que se hayan pasado todas las validaciones exitosamente, se limpia el flag de error 
                                 }
                             }
                         }
