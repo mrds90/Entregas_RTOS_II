@@ -28,7 +28,10 @@
 |  |  | - Se prueba con 4000 mensajes en una instancia a máxima velocidad y no se pierden datos |
 |  |  | - Se implementa rutina de envío de datos por Tx a través de ISR. |
 |  |  | - Se elimina Tabla 1 y se pasan detalles al código |
-
+| v 1.2 |  19/11/2021  | **Se entregan requisitos R_C2_17 a R_C22_**  |
+|  |  | - Se realizan modificaciones de estructura para cumplir con sugerencias en corrección semanal |
+|  |  | - Se implementa timer con overflow de 4ms - con función de callback para descarte de tramas que demoren mas de 4ms entre datos antes de EOM |
+|  |  | - Se chequea cumplimiento de incisos 20 a 22 implementado en anterior entrega. |
 
 
 #### Justificación de arquitectura del TP
@@ -67,12 +70,12 @@ Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se 
 | R_C2_14 | C2_FRAME_TRANSMIT_UartTxISR - es una función de callback que se llama en la interrupción de los datos por UART Tx y es en donde se procesan los bytes salientes |
 | R_C2_15 | C2_FRAME_TRANSMIT_UartTxISR - Luego de enviar el EOM se libera la memoria dinámica utilizada para la transacción **QMPool_put(printer_resources->pool...** |
 | R_C2_16 | C2_FRAME_PACKER_Print - Se arma el paquete con los datos procesados, agregando los delimitadores, el ID y el nuevo CRC |
-| R_C2_17 | |
-| R_C2_18 | |
-| R_C2_19 | |
-| R_C2_20 | |
-| R_C2_21 | |
-| R_C2_22 | |
+| R_C2_17 | C2_FRAME_CAPTURE_vTimerCallback - Se crea la función de callback para descartar la trama en la que un dato demore mas de 4 ms en  |
+| R_C2_18 | C2_FRAME_CAPTURE_ObjInit - Se crea un timer y se lo incluye como atributo en la estructura frame_capture_t para que cada instancia tenga su timer  |
+| R_C2_19 | C2_FRAME_CAPTURE_ObjInit - Se programa el timer con 4 Ticks de 1 ms para el overflow |
+| R_C2_20 | crc8_calc - Se utiliza función para calcular crc a medida que van llegando los datos  |
+| R_C2_21 | C2_FRAME_CAPTURE_UartRxISR --> C2_FRAME_CAPTURE_CheckCRC - el paquete no se envía a menos que el crc calculado sea igual al recibido |
+| R_C2_22 | C2_FRAME_PACKER_Receive - Recibe a través de una cola un puntero a una estructura frame_t que contiene un puntero a los datos y el tamaño de los mismos. Esta función es llamada dentro de la aplicación |
 
 
 ![](./images/frame_trip.gif)
