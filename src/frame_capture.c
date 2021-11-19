@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Inclusión de cabecera]=============================================*/
@@ -191,8 +191,6 @@ void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
     frame_capture_t *frame_capture = (frame_capture_t *) parameter;
-    
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     while (uartRxReady(frame_capture->uart)) {
         bool_t error = FALSE;
@@ -200,7 +198,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
 
         char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
 
-        if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &xHigherPriorityTaskWoken )){
+        if(pdPASS == xTimerResetFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken )){
     	    /* El comando de reset no fue ejecutado con exito. Tomar acciones apropiadas */
         }
 
@@ -289,10 +287,11 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
             }
             frame_capture->state = FRAME_CAPTURE_STATE_IDLE;  
         }
+
+        if( px_higher_priority_task_woken != pdFALSE ){
+				  /* Llamar a la función de safe-yield de interrupciones.*/
+		}
     }
 
-    if( xHigherPriorityTaskWoken != pdFALSE )
-    {
-        /* Llamar a la función de safe-yield de interrupciones.*/
-    }
+
 }

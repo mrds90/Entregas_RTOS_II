@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Evita la inclusión múltiple - comienzo]==============================*/
@@ -23,15 +23,15 @@ extern "C" {
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
 /**
- * @brief Inicializa el objeto que usara la ISR para recibir y elevar los paquetes de la capa inferior.
+ * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
  * 
- * @param app_buffer_handler_receive Manejador que contiene el contexto (cola y puntero a pool) 
+ * @param app_buffer_handler_receive Manejador que contiene el contexto (cola, semaforo y puntero a pool) 
  * @param uart Uart por donde se recibirán los datos.
  */
 void C2_FRAME_PACKER_Init(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
 
 /**
- * @brief Recibe los datos de la capa inferior los empaqueta (enmascara el ID y saca el CRC) y los envia a la capa superior.
+ * @brief Recibe los datos de FRAME_CAPTURE y los empaqueta (enmascara el ID y saca el CRC) y los envia a la capa superior.
  *
  * @param frame          Puntero al objeto que cargara el frame recibido.
  * @param buffer_handler Buffer que contiene el contexto (cola y puntero a pool)

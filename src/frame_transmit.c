@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Inclusión de cabecera]=============================================*/
@@ -11,6 +11,7 @@
 #include "semphr.h"
 
 #include "frame_transmit.h"
+
 #include "string.h"
 #include "task.h"
 #include <stdio.h>
@@ -25,8 +26,7 @@
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 
 /**
- * @brief Función de callback para atención de ISR para envío de dato procesado por UART. Utiliza
- * MEF para decisión a tomar en cada entrada a la función.
+ * @brief Función de callback para atención de ISR para envío de dato procesado por UART.
  *
  * @param taskParmPtr puntero a estructura de contexto para envio/impresión de información a
  * a través de UART Tx
@@ -36,14 +36,14 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter);
 
 /*=====[Implementación de funciones públicas]=================================*/
 void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler) {
-    buffer_handler->semaphore = xSemaphoreCreateBinary();       // Se crea el semaforo para evitar que se empiece a transmitir un paquete antes de que se termine de transmitir el anterior
+    buffer_handler->semaphore = xSemaphoreCreateBinary();// Se crea el semaforo para evitar que se empiece a transmitir un paquete antes de que se termine de transmitir el anterior
     configASSERT(buffer_handler->semaphore != NULL);
 }
 
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj) {
     uartCallbackSet(frame_obj->uart, UART_TRANSMITER_FREE, C2_FRAME_TRANSMIT_UartTxISR, (void *) frame_obj); //función de capa 1 (SAPI) para inicializar interrupción UART Tx
     uartSetPendingInterrupt(frame_obj->uart);
-    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY); // No avanza si esta enviando un paquete
+    xSemaphoreTake(frame_obj->buffer_handler.semaphore, portMAX_DELAY);             // No avanza si esta enviando un paquete
 }
 
 /*=====[Implementación de funciones privadas]================================*/
@@ -56,7 +56,7 @@ static void C2_FRAME_TRANSMIT_UartTxISR(void *parameter) {
     while (uartTxReady(frame_obj->uart)) {                                          // Mientras haya espacio en el buffer de transmisión
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
-        if (*frame_obj->frame.data != '\0') {                                       // Si no se ha terminado de imprimir el paquete
+        if (*frame_obj->frame.data != CHARACTER_END_OF_PACKAGE) {                   // Si no se ha terminado de imprimir el paquete
             uartTxWrite(frame_obj->uart, *frame_obj->frame.data);                   // Imprime el caracter
             frame_obj->frame.data++;                                                // Avanza puntero al siguiente caracter
         }

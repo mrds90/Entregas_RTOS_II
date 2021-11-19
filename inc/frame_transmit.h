@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Evita la inclusión múltiple - comienzo]==============================*/
@@ -37,7 +37,7 @@ extern "C" {
  */
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj);
 /**
- * @brief Inicia los recursos para la transmision de datos
+ * @brief Se crea semaforo que se asigna al buffer handler de la instancia
  * 
  * @param buffer_handler 
  */
