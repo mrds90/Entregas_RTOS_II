@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Evita la inclusión múltiple - comienzo]==============================*/
@@ -27,7 +27,7 @@ extern "C" {
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
  * @brief Se inicializa el objeto. Se inicilizan índices, flag, se crea la cola
- * se le pasa puntero al buffer_handler y se inicializan los estados.
+ * se le pasa puntero al buffer_handler, crea timer y se inicializan los estados.
  *
  * @param pool* puntero inicializado utilizado por QMPool
  * @param uart  uart utilizada en la instancia.

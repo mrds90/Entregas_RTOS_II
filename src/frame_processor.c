@@ -1,15 +1,14 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Inclusión de cabecera]=============================================*/
 
 #include "FreeRTOS.h"
 #include "task.h"
-#include "semphr.h"
 
 #include "frame_processor.h"
 #include "frame_packer.h"
@@ -37,12 +36,10 @@ typedef struct {
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
- * @brief Esta tarea recibe datos, los procesa, valida la trama (HEX y CRC) y
- * lo envía a la función que se encarga de imprimirlos.
+ * @brief función de capa 3 que envía contexto para inicializar Objeto de la instancia.
+ * Recibe las tramas del packer de capa 2, los procesa y envía a capa 2 para transmitirlos.
  *
- * @param taskParmPtr se recibe un puntero a una estructura cargado con un malloc
- * a un espacio de memoria reservado para el pool, y tambien la uart con la que se
- * inicializa la instancia.
+ * @param taskParmPtr Se envia a tarea puntero a pool de memoria y uart de instancia. 
  */
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 
@@ -85,12 +82,13 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     frame_obj.uart = uart;
     QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
-    C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, uart);
+    C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, uart); // Se inicializa el objeto de la instancia
 
     while (TRUE) {
         C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
 
         // Aquí se procesará la trama según el comando...
+        
         C2_FRAME_PACKER_Print(&frame_obj);
     }
 }

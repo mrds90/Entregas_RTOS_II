@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Evita la inclusión múltiple - comienzo]==============================*/
@@ -21,7 +21,8 @@ extern "C" {
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
- * @brief Se inicializa la tarea procesadora de tramas.
+ * @brief Se inicializa la tarea procesadora de tramas, reserva espacio para
+ * pool de memoria y pasa el contexto a tarea.
  *
  * @param uart puerto de comunicación UART pasado desde int main para inicializar
  * la instancia

@@ -1,8 +1,8 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 11/11/2021
- * Version: 1.2
+ * Date: 19/11/2021
+ * Version: 1.3
  *===========================================================================*/
 
 /*=====[Inclusión de cabecera]=============================================*/
@@ -12,6 +12,7 @@
 #include "string.h"
 #include "task.h"
 #include "crc8.h"
+#include "timers.h"
 #include <stdio.h>
 #include <ctype.h>
 
@@ -22,6 +23,7 @@
 #define A_HEXA_VALUE           (10)
 #define NIBBLE_SIZE            (4)
 #define NIBBLE_BIT(nibble, max_nibbles) (NIBBLE_SIZE * (max_nibbles - (nibble + 1)))
+#define RECEIVE_TIME_OUT        4
 
 /*=====[Definición de tipos de datos privados]===================================*/
 
@@ -48,6 +50,7 @@ typedef enum {
  */
 typedef struct {
     frame_buffer_handler_t buffer_handler;
+    TimerHandle_t xTimer_time_out;
     frame_t raw_frame;
     uartMap_t uart;
     frame_capture_state_t state;
@@ -57,6 +60,7 @@ typedef struct {
 } frame_capture_t;
 
 /*=====[Definición de variables privadas]====================================*/
+
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 /**
@@ -100,6 +104,12 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
  */ 
 __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
 
+/**
+ * @brief Función de callback de timer. Devuelve el bloque de pool, desactiva la captura y queda en estado IDLE.
+ *
+ * @param xTimer recibe el Handle del timer del objeto.
+ */
+void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer);
 /*=====[Implementación de funciones públicas]=================================*/
 
 frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
@@ -114,7 +124,20 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     configASSERT(frame_capture->buffer_handler.queue != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
+
+    frame_capture->xTimer_time_out = xTimerCreate(
+                                            "Timer_Time_Out_Receive",
+                                            pdMS_TO_TICKS(RECEIVE_TIME_OUT),
+                                            pdFALSE,
+                                            ( void * ) frame_capture,
+                                            C2_FRAME_CAPTURE_vTimerCallback
+                                            );
+    if ( frame_capture->xTimer_time_out == NULL ){
+        // ERROR_SYSTEM?
+    }
+
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
+
     return (frame_buffer_handler_t *) &frame_capture->buffer_handler; // se devuelve cargado en el contexto el puntero al pool y la cola
 }
 
@@ -151,6 +174,19 @@ __STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_
     return ret;
 }
 
+void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer){
+    configASSERT (xTimer);
+    frame_capture_t *frame_capture = (frame_capture_t *) pvTimerGetTimerID( xTimer );
+    taskENTER_CRITICAL();   // Se abre sección critica para proteger los datos compartidos
+    if( TRUE == frame_capture->frame_active){
+        QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data);
+    }
+    frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
+    frame_capture->frame_active = FALSE;
+    taskEXIT_CRITICAL();    // Se cierra seccion critica
+}
+
+
 /*=====[Implementación de funciones de interrupción]==============================*/
 
 static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
@@ -161,6 +197,10 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         BaseType_t px_higher_priority_task_woken = pdFALSE;
 
         char character = uartRxRead(frame_capture->uart); //Lee el caracter de la UART (función de la capa 1)
+
+        if(frame_capture->frame_active) {       // Se reinicia el timer solo si hay un paquete válido ingresando
+            xTimerResetFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken );
+        }
 
         switch (character) {
             case START_OF_MESSAGE:
@@ -176,25 +216,24 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     frame_capture->frame_active = TRUE;
                     frame_capture->buff_ind = 0;
                     frame_capture->crc = 0;
+                    xTimerStartFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken );   // Se inicia el timer cuando ingresa un nuevo paquete válido
                 }
                 break;
 
             case END_OF_MESSAGE:
                 if (frame_capture->frame_active) { // solo se procesa si se encontraba procesando datos válidos
                     error = TRUE;
+                    //
                     if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {  // se previene un EOM en ID o sin CRC
                         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Se toma el tamaño de datos sin CRC
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
                             if (frame_capture->buffer_handler.queue != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-                                frame_capture->frame_active = FALSE;
+                                frame_capture->frame_active = FALSE;                                
                                 if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
                                     // Se envía la cola de FRAME_PACKER para ser empaquetado y enviado a la capa 3
-                                    if (px_higher_priority_task_woken == pdTRUE) {
-                                        portYIELD_FROM_ISR(px_higher_priority_task_woken);
-                                    }
-
-                                    error = FALSE;
+                                    error = FALSE;          // En caso de que se hayan pasado todas las validaciones exitosamente, se limpia el flag de error 
+                                    xTimerStopFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken );    // Se detiene el timer cuando arriba el EOM para evitar que siga actuando hasta que no llegue un nuevo EOM
                                 }
                             }
                         }
@@ -237,12 +276,21 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         }
 
         if (error) {
-            UBaseType_t uxSavedInterruptStatus;
-            uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-            QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data); // Ante un error en adquisición libero pool
-            frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-            frame_capture->frame_active = FALSE;
-            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+            if( TRUE == frame_capture->frame_active){
+                UBaseType_t uxSavedInterruptStatus;
+                uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+                QMPool_put(frame_capture->buffer_handler.pool, (void *) frame_capture->raw_frame.data); // Ante un error en adquisición libero pool                              
+                taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+                frame_capture->frame_active = FALSE;
+                xTimerStopFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken );    // Se detiene el timer cuando arriba un paquete invalido, para evitar que siga actuando hasta que no llegue un nuevo EOM
+            }
+            frame_capture->state = FRAME_CAPTURE_STATE_IDLE; 
         }
+
+        if( px_higher_priority_task_woken != pdFALSE ){
+			portYIELD_FROM_ISR(px_higher_priority_task_woken);
+		}
     }
+
+
 }
