@@ -132,9 +132,7 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
                                             ( void * ) frame_capture,
                                             C2_FRAME_CAPTURE_vTimerCallback
                                             );
-    if ( frame_capture->xTimer_time_out == NULL ){
-        // ERROR_SYSTEM?
-    }
+    configASSERT( frame_capture->xTimer_time_out != NULL );
 
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
 

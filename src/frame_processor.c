@@ -39,13 +39,13 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 /*=====[Implementación de funciones públicas]=================================*/
 
 bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
-    bool_t ret;
+    bool_t ret = FALSE;
     static bool_t uart_used[UART_MAXNUM] = {FALSE};
+    
     if (uart_used[uart]) { 
         ret = FALSE;
     }
     else {
-        ret = TRUE;
         uart_used[uart] = TRUE;
         BaseType_t xReturned = xTaskCreate(
             C3_FRAME_PROCESSOR_Task,
@@ -55,8 +55,11 @@ bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
             tskIDLE_PRIORITY + 1,
             NULL
             );
-        configASSERT(xReturned == pdPASS);
+        if(xReturned == pdPASS){
+            ret = TRUE;
+        }
     }
+
     return ret;
 }
 
