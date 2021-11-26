@@ -133,7 +133,6 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
         character_count = C3_FRAME_PROCESSOR_WordProcessor(&frame_in[index_in], &frame_out[index_out], command);
 
 
-        //printf("character count: %d\n",character_count);
         if (character_count == INVALID_FRAME) {
             error_flag = ERROR_INVALID_DATA;
             break;
@@ -143,6 +142,7 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
         index_out += character_count;
 
         if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {
+        	frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
             break;
         }
 
@@ -185,8 +185,10 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
         frame_out[1] = TO_LOWERCASE(frame_out[1]);
     }
 
-    frame_out[index_out++] = CHARACTER_END_OF_PACKAGE;
-    memcpy(frame_in, frame_out, index_out);
+    memcpy(frame_in, frame_out, strlen(frame_out));
+
+    frame_in[index_out] = CHARACTER_END_OF_PACKAGE;
+
     return index_out;
 }
 
@@ -213,12 +215,12 @@ static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, ch
 
     int8_t index_in = 1;
 
-    while (CHECK_LOWERCASE(word_in[index_in]) && index_in < WORD_MAX_SIZE) {
+    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) {
         word_out[index_in] = word_in[index_in];
         index_in++;
     }
 
-    if (index_in >= WORD_MAX_SIZE) {
+    if (index_in > WORD_MAX_SIZE) {
         index_in = INVALID_FRAME;
     }
     
