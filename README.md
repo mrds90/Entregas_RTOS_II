@@ -2,7 +2,7 @@
 
 #### Fecha: 05/11/2021
 
-#### Versión: 1.1
+#### Versión: 1.3
 
 #### Integrantes:
 - DOMINGUEZ SHOCRÓN, Marcos Raúl - <mrds0690@gmail.com>
@@ -32,7 +32,11 @@
 |  |  | - Se realizan modificaciones de estructura para cumplir con sugerencias en corrección semanal |
 |  |  | - Se implementa timer con overflow de 4ms - con función de callback para descarte de tramas que demoren mas de 4ms entre datos antes de EOM |
 |  |  | - Se chequea cumplimiento de incisos 20 a 22 implementado en anterior entrega. |
-
+| v 1.3 | 26/11/2021 | **Se entregan requisitos de C3 R_C3_1 a R_C3_13** |
+|  |  | - Se realizan modificaciones para cumplir con las sugerencias de corrección semanal | 
+|  |  | - Se codifican las funciones para cumplir con los requerimientos de la capa 3 de aplicación |
+|  |  | - Se realizan pruebas y se depuran errores |
+|  |  | - Se actualiza Readme |
 
 #### Justificación de arquitectura del TP
 - ***Gestión de datos:*** aplicamos un patrón de asignación de objetos desde un pool de memoria _(Quantum Leaps - QMPool v6.2.0)_, el cual crea diferentes colecciones estáticas de objetos del mismo tipo. Si se requiere un objeto o bloque de objetos se lo puede solicitar de la colección disponible, y cuando ya no se lo precisa se puede liberar, quedando nuevamente disponible. En nuestro caso utilizamos una estructura pero lo inicializamos a través de un puntero pedido por pvPortMalloc, por lo que queda establecido en zona de memoria dinámica; en esta versión se crean 7 bloques de 200 unidades de datos de tipo _uint_8t_, estos bloques funcionan como buffer de recepción de datos. Con esto buscamos que al crear una nueva instancia se pueda reservar un nuevo pool en tiempo de ejecución.
@@ -76,6 +80,21 @@ Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se 
 | R_C2_20 | crc8_calc - Se utiliza función para calcular crc a medida que van llegando los datos  |
 | R_C2_21 | C2_FRAME_CAPTURE_UartRxISR --> C2_FRAME_CAPTURE_CheckCRC - el paquete no se envía a menos que el crc calculado sea igual al recibido |
 | R_C2_22 | C2_FRAME_PACKER_Receive - Recibe a través de una cola un puntero a una estructura frame_t que contiene un puntero a los datos y el tamaño de los mismos. Esta función es llamada dentro de la aplicación |
+|  |  | 
+| R_C3_1  | C3_FRAME_PROCESSOR_Transform - En esta función se utiliza la variable **qty_words** para chequear la cantidad de palabra del frame  | 
+| R_C3_2  | C3_FRAME_PROCESSOR_Transform - En esta función se analizan las condiciones de inicio de palabra, en caso de que no haya ninguna entra en estado de ERROR_INVALID_DATA  | 
+| R_C3_3  | C3_FRAME_PROCESSOR_WordProcessor - En esta función se analiza la cantidad de caracteres con la variación del indice **index_in**, no puede ser mayor a la etiqueta WORD_MAX_SIZE, si no entra en estado de ERROR_INVALID_DATA | 
+| R_C3_4  | C3_FRAME_PROCESSOR_WordProcessor - En esta función si el primer caracter no es un caracter válido entra en estado de ERROR_INVALID_DATA | 
+| R_C3_5  | IDEM R_C3_4 | 
+| R_C3_6  | C3_FRAME_PROCESSOR_Transform - Se hace una etiqueta **CHECK_OPCODE(command)** para chequear el comando de entrada. | 
+| R_C3_7  | frame_processor.c - en este archivo se crean etiquetas con condicionales ternarios CHECK_UPPERCASE(caracter) y CHECK_LOWERCASE(caracter) para chequeo de validez de este requerimiento  | 
+| R_C3_8  | C3_FRAME_PROCESSOR_Transform - Cada '\_' o ' ' se considera una transición de palabra y a continuación en caso de no recibir a-z o A-Z entra en estado ERROR_INVALID_DATA | 
+| R_C3_9  | C3_FRAME_PROCESSOR_Transform - Cada '\_' o ' ' se considera una transición de palabra y luego no es aceptable un '\0' por lo que entraría en estado de ERROR_INVALID_DATA  | 
+| R_C3_10 | C3_FRAME_PROCESSOR_Transform - En caso de haber cumplido alguna condición de dato inválido, se setea el error_flag, se trunca la función con break y se carga en el mensaje de salida el código de error correspondiente | 
+| R_C3_11 | IDEM R_C3_10 | 
+| R_C3_12 | C3_FRAME_PROCESSOR_Transform - El primer caractér que se lee y chequea es el comando que indica el formato a convertír. Luego las decisiones de los condicionales dependen de esta variable. | 
+| R_C3_13 | C3_FRAME_PROCESSOR_Task hace un llamdo a C2_FRAME_PACKER_Print, pasandole en el objeto el mensaje de error. Luego la capa 2 se encarga de empaquetarlo con el ID correspondiente y calcular el CRC | 
+
 
 
 ![](./images/frame_trip.gif)
