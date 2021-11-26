@@ -1,7 +1,7 @@
 /*=============================================================================
  * Authors: Marcos Raul Dominguez Shocron <mrds0690@gmail.com> - Pablo Javier Morzan
  * <pablomorzan@gmail.com> - Martin Julian Rios <jrios@fi.uba.ar>
- * Date: 19/11/2021
+ * Date: 23/11/2021
  * Version: 1.3
  *===========================================================================*/
 
@@ -132,9 +132,7 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
                                             ( void * ) frame_capture,
                                             C2_FRAME_CAPTURE_vTimerCallback
                                             );
-    if ( frame_capture->xTimer_time_out == NULL ){
-        // ERROR_SYSTEM?
-    }
+    configASSERT( frame_capture->xTimer_time_out != NULL );
 
     C2_FRAME_CAPTURE_UartRxInit(C2_FRAME_CAPTURE_UartRxISR, (void *) frame_capture);
 
