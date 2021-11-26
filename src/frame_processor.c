@@ -23,7 +23,7 @@
 #define ERROR_NONE              0
 #define ERROR_INVALID_DATA      1
 #define ERROR_INVALID_OPCODE    2
-#define ERROR_MSG_SIZE          4
+#define ERROR_MSG_SIZE          3
 #define CHECK_LOWERCASE(x) ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
 #define CHECK_UPPERCASE(x) ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
 #define CHECK_OPCODE(x) ((x == 'S' || x == 'C' || x == 'P') ? ERROR_NONE : ERROR_INVALID_OPCODE)
@@ -48,18 +48,19 @@
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 
 /**
- * @brief Transforma una trama en el formato definido por el comando.
+ * @brief Transforma una trama en el formato definido por el comando que es el primer
+ * elemento de la misma.
  *
- * @param frame
+ * @param frame recibe un puntero al primer elemento del frame que debe procesar.
  */
 static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame);
 /**
- * @brief Transfomra de formato una palabra
+ * @brief Transfomra de formato una palabra según el comando recibido
  * 
- * @param word_in 
- * @param word_out 
- * @param command 
- * @return int8_t 
+ * @param word_in puntero al inicio de la palabra a procesar
+ * @param word_out puntero donde se debe escribir la palabra procesada
+ * @param command indica el formato al que se debe procesar
+ * @return int8_t revuelve la cantidad de caracteres procesados. En caso de error devuelve -1.
  */
 static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command);
 
@@ -116,12 +117,13 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
 }
 
 static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
-    char frame_out[MAX_BUFFER_SIZE];
-    int index_in = 1;
-    int index_out = 1;
-    int qty_words = 0;
-    char command;
-    int8_t error_flag = 0;
+    
+    char frame_out[MAX_BUFFER_SIZE];    // su usa para armar la cadena de salida
+    int index_in = 1;                   // índice en cadena de entrada
+    int index_out = 1;                  // índice en cadena de salida
+    int qty_words = 0;                  // para chequear la cantidad máxima de palabras
+    char command;                       // ref al formato que se debe transformar
+    int8_t error_flag = 0;              // flag de error para informar a capa 2
 
     command = *frame_in;
     *frame_out = *frame_in;
@@ -132,7 +134,6 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
 
         character_count = C3_FRAME_PROCESSOR_WordProcessor(&frame_in[index_in], &frame_out[index_out], command);
 
-
         if (character_count == INVALID_FRAME) {
             error_flag = ERROR_INVALID_DATA;
             break;
@@ -141,7 +142,7 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
         index_in += character_count;
         index_out += character_count;
 
-        if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {
+        if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {  // Condición de salida de un frame correcto
         	frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
             break;
         }
@@ -151,8 +152,9 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
             break;
         }
 
+        // Transición de palabra
         if (command == 'S') {
-            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') { //Transisión de palabra
+            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') { 
                 frame_out[index_out] = '_';
                 index_in++;
                 index_out++;
@@ -167,7 +169,7 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
             }
         }
         else {
-            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') { //CHEQUEO DE TRANSICIÓN DE PALABRA
+            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') { //Chequeo de transición de palabra
                 index_in++;
             }
             else if (!CHECK_UPPERCASE(frame_in[index_in])) {
@@ -178,10 +180,10 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
     }
 
     if (error_flag) {
-        snprintf(frame_out, ERROR_MSG_SIZE, "E%.2d", error_flag - 1);
+        snprintf(frame_out, ERROR_MSG_SIZE + 1, "E%.2d", error_flag - 1);
         index_out = ERROR_MSG_SIZE;
     }
-    else if ('C' == command) {
+    else if ('C' == command) {         // Camel se procesa como Pascal y se modifica el primer caracter al final
         frame_out[1] = TO_LOWERCASE(frame_out[1]);
     }
 
@@ -193,7 +195,10 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
 }
 
 static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command) {
-    if (CHECK_UPPERCASE(*word_in)) {
+    
+    // Pascal y Camel se procesan como Pascal y al final se modifica el primer caracter
+
+    if (CHECK_UPPERCASE(*word_in)) {  
         if (command == 'S') {
             *word_out = TO_LOWERCASE(*word_in);
         }
@@ -210,17 +215,17 @@ static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, ch
         }
     }
     else {
-        return INVALID_FRAME; //PONER ETIQUETA INVALID FRAME
+        return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
     }
 
     int8_t index_in = 1;
 
-    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) {
+    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
         word_out[index_in] = word_in[index_in];
         index_in++;
     }
 
-    if (index_in > WORD_MAX_SIZE) {
+    if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
         index_in = INVALID_FRAME;
     }
     
