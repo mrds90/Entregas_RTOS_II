@@ -79,17 +79,23 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame);
 
 /**
- * @brief Transfomra de formato una palabra según el comando recibido
+ * @brief Transfomra una palabra cualquiera a palabra con minúscula al inicio.
+ * Además valida datos y chequea cantidad.
  *
  * @param word_in puntero al inicio de la palabra a procesar
  * @param word_out puntero donde se debe escribir la palabra procesada
- * @param command indica el formato al que se debe procesar
  * @return int8_t revuelve la cantidad de caracteres procesados. En caso de error devuelve -1.
  */
-//static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command);
-
 static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out);
 
+/**
+ * @brief Transfomra una palabra cualquiera a palabra con mayúscula al inicio.
+ * Además valida datos y chequea cantidad.
+ *
+ * @param word_in puntero al inicio de la palabra a procesar
+ * @param word_out puntero donde se debe escribir la palabra procesada
+ * @return int8_t revuelve la cantidad de caracteres procesados. En caso de error devuelve -1.
+ */
 static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out);
 
 /*=====[Implementación de funciones públicas]=================================*/
@@ -173,7 +179,7 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
             if (frame_in[index_in] == ASCII_UNDERSCORE || frame_in[index_in] == ASCII_SPACE) {     //Chequeo de transición de palabra
                 index_in++;
             }
-            else if (!CHECK_UPPERCASE(frame_in[index_in])) {
+            else if (!CHECK_UPPERCASE(frame_in[index_in])) { //en caso de no ser mayúscula setea el flag de error
                 error_flag = ERROR_INVALID_DATA;
                 break;
             }
@@ -203,7 +209,7 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
                 if (frame_in[index_in] == ASCII_UNDERSCORE || frame_in[index_in] == ASCII_SPACE) {     //Chequeo de transición de palabra
                     index_in++;
                 }
-                else if (!CHECK_UPPERCASE(frame_in[index_in])) {
+                else if (!CHECK_UPPERCASE(frame_in[index_in])) { //en caso de no ser mayúscula setea el flag de error
                     error_flag = ERROR_INVALID_DATA;
                     break;
                 }
