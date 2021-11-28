@@ -34,6 +34,7 @@ extern "C" {
 
 #define WORD_MAX_SIZE               10
 #define WORD_MAX_QTY                15
+#define WORD_MIN_QTY                1
 #define UNDERSCORE_MAX_QTY      WORD_MAX_QTY // no se puede al final pero si al principio segun los requerimientos. por lo que puede haber un guion por palabra
 #if ((WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 200)
     #define MAX_BUFFER_SIZE         (WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
