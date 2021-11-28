@@ -23,6 +23,7 @@
 #define CHARACTER_BEFORE_DATA_SIZE       ((CHARACTER_SIZE_ID) *sizeof(uint8_t))
 #define START_OF_MESSAGE_SIZE            1 * sizeof(char)
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
+#define CRC_MSG_FORMAT                   "%s%0.2X"
 /*=====[Definición de tipos de datos privados]================================*/
 
 /*=====[Definición de variables privadas]====================================*/
@@ -44,11 +45,11 @@ void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_hand
 }
 
 void C2_FRAME_PACKER_Print(frame_class_t *frame_obj) {
+    printf(frame_obj->frame.data);
     uint8_t crc = crc8_calc(0, frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
-
     snprintf(frame_obj->frame.data + START_OF_MESSAGE_SIZE - CHARACTER_SIZE_ID * sizeof(char),  // puntero a posición de cadena de destino
              PRINT_FRAME_SIZE(frame_obj->frame.data_size),                                      // tamaño de los datos a escribir
-             "%s%0.2X",                                                                         // formato de dato [[frame + crc de 2 elementos]]
+             CRC_MSG_FORMAT,                                                                         // formato de dato [[frame + crc de 2 elementos]]
              frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char),                          // datos sin crc
              crc);                                                                              // nuevo crc 
                     

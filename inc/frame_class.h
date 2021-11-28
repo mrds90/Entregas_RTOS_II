@@ -46,8 +46,8 @@ extern "C" {
  * @brief Contiene atributos de la instancia de la trama. Puntero de indice y tamaño
  */
 typedef struct {
-    char *data;
     uint8_t data_size;
+    char *data;
 } frame_t;
 
 /**
