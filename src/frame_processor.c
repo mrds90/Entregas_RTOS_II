@@ -24,17 +24,37 @@ typedef enum {
     ERROR_QTY,
 } error_t;
 
-#define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
-#define POOL_PACKET_COUNT     (QUEUE_SIZE)
-#define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
-#define CHECK_LOWERCASE(x) ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
-#define CHECK_UPPERCASE(x) ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
-#define CHECK_OPCODE(x) ((x == 'S' || x == 'C' || x == 'P') ? ERROR_NONE : ERROR_INVALID_OPCODE)
-#define TO_UPPERCASE(x) (x - 32)
-#define TO_LOWERCASE(x) (x + 32)
-#define INVALID_FRAME           (-1)
-/*=====[Definición de tipos de datos privados]===================================*/
+#define ERROR_MSG_FORMAT        "E%.2d"
 
+#define POOL_PACKET_SIZE        MAX_BUFFER_SIZE
+#define POOL_PACKET_COUNT       (QUEUE_SIZE)
+#define POOL_SIZE_BYTES         (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
+
+typedef enum {
+    CASE_PASCAL,
+    CASE_CAMEL,
+    CASE_SNAKE,
+
+    CASE_QTY
+} case_t;
+
+#define ASCII_UNDERSCORE         '_'
+#define ASCII_SPACE             ' '
+
+#define CHECK_LOWERCASE(x)      ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
+#define CHECK_UPPERCASE(x)      ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
+#define CHECK_OPCODE(x)         ((x == CASE_PASCAL || x == CASE_SNAKE || x == CASE_CAMEL) ? ERROR_NONE : ERROR_INVALID_OPCODE)
+#define TO_UPPERCASE(x)         (x + ('A' - 'a'))
+#define TO_LOWERCASE(x)         (x + ('a' - 'A'))
+
+#define INVALID_FRAME           (-1)
+
+/*=====[Definición de tipos de datos privados]===================================*/
+static char const command_map[CASE_QTY] = {
+    [CASE_SNAKE]  = 'S',
+    [CASE_CAMEL]  = 'C',
+    [CASE_PASCAL] = 'P',
+};
 /*=====[Definición de variables globales publicas externas]=====================*/
 
 /*=====[Definición de variables globales públicas]==============================*/
@@ -66,7 +86,11 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame);
  * @param command indica el formato al que se debe procesar
  * @return int8_t revuelve la cantidad de caracteres procesados. En caso de error devuelve -1.
  */
-static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command);
+//static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command);
+
+static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out);
+
+static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out);
 
 /*=====[Implementación de funciones públicas]=================================*/
 
@@ -122,70 +146,118 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
     int index_in = 1;                   // índice en cadena de entrada
     int index_out = 1;                  // índice en cadena de salida
     int qty_words = 0;                  // para chequear la cantidad máxima de palabras
-    char command;                       // ref al formato que se debe transformar
     int8_t error_flag = 0;              // flag de error para informar a capa 2
 
-    command = *frame_in;
     *frame_out = *frame_in;
-    error_flag = CHECK_OPCODE(command);
 
-    while (!error_flag) {
-        int8_t character_count;
+    case_t command = CASE_PASCAL;
 
-        character_count = C3_FRAME_PROCESSOR_WordProcessor(&frame_in[index_in], &frame_out[index_out], command);
+    while (command_map[command] != *frame_in && command < CASE_QTY) {
+        command++;
+    }
 
-        if (character_count == INVALID_FRAME) {
-            error_flag = ERROR_INVALID_DATA;
-            break;
-        }
+    int8_t character_count;
 
-        index_in += character_count;
-        index_out += character_count;
+    switch (command) {
+        case CASE_CAMEL:
+            character_count = C3_FRAME_PROCESSOR_WordLowerInitial(&frame_in[index_in], &frame_out[index_out]);
+            index_in += character_count;
+            index_out += character_count;
+            ++qty_words;
 
-        if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {  // Condición de salida de un frame correcto
-            frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
-            break;
-        }
-
-        if (++qty_words > WORD_MAX_QTY) {
-            error_flag = ERROR_INVALID_DATA;
-            break;
-        }
-
-        // Transición de palabra
-        if (command == 'S') {
-            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') {
-                frame_out[index_out] = '_';
-                index_in++;
-                index_out++;
-            }
-            else if (CHECK_UPPERCASE(frame_in[index_in])) {
-                frame_out[index_out] = '_';
-                index_out++;
-            }
-            else {
-                error_flag = ERROR_INVALID_DATA;
+            if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {      // Condición de salida de un frame correcto
+                frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
                 break;
             }
-        }
-        else {
-            if (frame_in[index_in] == '_' || frame_in[index_in] == ' ') { //Chequeo de transición de palabra
+
+            if (frame_in[index_in] == ASCII_UNDERSCORE || frame_in[index_in] == ASCII_SPACE) {     //Chequeo de transición de palabra
                 index_in++;
             }
             else if (!CHECK_UPPERCASE(frame_in[index_in])) {
                 error_flag = ERROR_INVALID_DATA;
                 break;
             }
-        }
+
+        case CASE_PASCAL:
+            while (!error_flag) {
+                character_count = C3_FRAME_PROCESSOR_WordUpperInitial(&frame_in[index_in], &frame_out[index_out]);
+
+                index_in += character_count;
+                index_out += character_count;
+
+                if (++qty_words > WORD_MAX_QTY) {
+                    error_flag = ERROR_INVALID_DATA;
+                    break;
+                }
+
+                if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {      // Condición de salida de un frame correcto
+                    if (qty_words < WORD_MIN_QTY) {
+                        error_flag = ERROR_INVALID_DATA;
+                    }
+                    else {
+                        frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
+                    }
+                    break;
+                }
+
+                if (frame_in[index_in] == ASCII_UNDERSCORE || frame_in[index_in] == ASCII_SPACE) {     //Chequeo de transición de palabra
+                    index_in++;
+                }
+                else if (!CHECK_UPPERCASE(frame_in[index_in])) {
+                    error_flag = ERROR_INVALID_DATA;
+                    break;
+                }
+            }
+
+            break;
+
+        case CASE_SNAKE:
+            while (!error_flag) {
+                character_count = C3_FRAME_PROCESSOR_WordLowerInitial(&frame_in[index_in], &frame_out[index_out]);
+                index_in += character_count;
+                index_out += character_count;
+
+                if (++qty_words > WORD_MAX_QTY) {
+                    error_flag = ERROR_INVALID_DATA;
+                    break;
+                }
+
+                if (frame_in[index_in] == CHARACTER_END_OF_PACKAGE) {      // Condición de salida de un frame correcto
+                    if (qty_words < WORD_MIN_QTY) {
+                        error_flag = ERROR_INVALID_DATA;
+                    }
+                    else {
+                        frame_out[index_out] = CHARACTER_END_OF_PACKAGE;
+                    }
+                    break;
+                }
+
+                if (frame_in[index_in] == ASCII_UNDERSCORE || frame_in[index_in] == ASCII_SPACE) {
+                    frame_out[index_out] = ASCII_UNDERSCORE;
+                    index_in++;
+                    index_out++;
+                }
+                else if (CHECK_UPPERCASE(frame_in[index_in])) {
+                    frame_out[index_out] = ASCII_UNDERSCORE;
+                    index_out++;
+                }
+                else {
+                    error_flag = ERROR_INVALID_DATA;
+                    break;
+                }
+            }
+            break;
+
+        default:
+            error_flag = ERROR_INVALID_OPCODE;
     }
 
+
     if (error_flag) {
-        snprintf(frame_out, ERROR_MSG_SIZE + 1, "E%.2d", error_flag - 1);
+        snprintf(frame_out, ERROR_MSG_SIZE + sizeof(CHARACTER_END_OF_PACKAGE), ERROR_MSG_FORMAT, error_flag - 1);
         index_out = ERROR_MSG_SIZE;
     }
-    else if ('C' == command) {         // Camel se procesa como Pascal y se modifica el primer caracter al final
-        frame_out[1] = TO_LOWERCASE(frame_out[1]);
-    }
+
 
     memcpy(frame_in, frame_out, strlen(frame_out));
 
@@ -194,41 +266,52 @@ static uint8_t C3_FRAME_PROCESSOR_Transform(char *frame_in) {
     return index_out;
 }
 
-static int8_t C3_FRAME_PROCESSOR_WordProcessor(char *word_in, char *word_out, char command) {
-    // Pascal y Camel se procesan como Pascal y al final se modifica el primer caracter
-
+static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out) {
     if (CHECK_UPPERCASE(*word_in)) {
-        if (command == 'S') {
-            *word_out = TO_LOWERCASE(*word_in);
-        }
-        else {
-            *word_out = *word_in;
-        }
+        *word_out = TO_LOWERCASE(*word_in);
     }
     else if (CHECK_LOWERCASE(*word_in)) {
-        if (command == 'S') {
-            *word_out = *word_in;
-        }
-        else {
-            *word_out = TO_UPPERCASE(*word_in);
-        }
+        *word_out = *word_in;
     }
     else {
-        return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
+        return INVALID_FRAME;         // Si la palabra no comienza con mayúscula o minúscula se considera error
     }
 
     int8_t index_in = 1;
 
-    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
+    while (CHECK_LOWERCASE(word_in[index_in]) && (index_in <= WORD_MAX_SIZE)) {         // palabra de hasta 10 caracteres
         word_out[index_in] = word_in[index_in];
         index_in++;
     }
 
-    if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
+    if (index_in > WORD_MAX_SIZE) {         // si se cuentan 11 caracteres o más se considera inválido
         index_in = INVALID_FRAME;
     }
 
     return index_in;
 }
 
-/*=====[Implementación de funciones de interrupción]==============================*/
+static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out) {
+    if (CHECK_UPPERCASE(*word_in)) {
+        *word_out = (*word_in);
+    }
+    else if (CHECK_LOWERCASE(*word_in)) {
+        *word_out = TO_UPPERCASE(*word_in);
+    }
+    else {
+        return INVALID_FRAME;             // Si la palabra no comienza con mayúscula o minúscula se considera error
+    }
+
+    int8_t index_in = 1;
+
+    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) {             // palabra de hasta 10 caracteres
+        word_out[index_in] = word_in[index_in];
+        index_in++;
+    }
+
+    if (index_in > WORD_MAX_SIZE) {             // si se cuentan 11 caracteres o más se considera inválido
+        index_in = INVALID_FRAME;
+    }
+
+    return index_in;
+}
