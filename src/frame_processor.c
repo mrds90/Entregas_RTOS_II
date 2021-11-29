@@ -44,7 +44,6 @@ typedef void (*FrameProcessorCallback)(frame_t *frame_obj);
 typedef struct {
     TaskFunction_t task_function;
     uartMap_t uart;
-    QueueHandle_t queue;
     bool_t is_active;
 } main_processor_t;
 
@@ -125,11 +124,7 @@ bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
                 NULL
                 );
             if (xReturned == pdPASS) {
-                main_app_instance->queue = xQueueCreate(QUEUE_SIZE, sizeof(char));
-                if (main_app_instance->queue != NULL) {
-                    ret = TRUE;
-                    main_app_instance->is_active = TRUE;
-                }
+                main_app_instance->is_active = TRUE;
             }
         }
     }
@@ -156,20 +151,24 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     QMPool pool;
     frame_class_t frame_obj;
     frame_obj.buffer_handler.pool = &pool;
-    frame_obj.buffer_handler.queue = NULL,
+    frame_obj.buffer_handler.queue_receive = NULL,
+    frame_obj.buffer_handler.queue_transmit = NULL,
     frame_obj.frame.data = NULL;
     frame_obj.frame.data_size = 0;
     frame_obj.uart = (uartMap_t) main_app_instance->uart;
+    frame_obj.buffer_handler.queue_transmit  = xQueueCreate(QUEUE_SIZE, sizeof(frame_class_t));
+    configASSERT(frame_obj.buffer_handler.queue_transmit  != NULL);
     QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
-    C2_FRAME_PACKER_Init(&frame_obj.buffer_handler, frame_obj.uart); // Se inicializa el objeto de la instancia
-
+    C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
+    
     while (TRUE) {
-        C2_FRAME_PACKER_Receive(&frame_obj.frame, &frame_obj.buffer_handler);
+        frame_t frame;
+        C2_FRAME_PACKER_Receive(&frame, frame_obj.buffer_handler.queue_receive);
 
         case_t command = CASE_PASCAL;
 
-        while (command_map[command] != *frame_obj.frame.data && command < CASE_QTY) {
+        while (command_map[command] != *frame.data && command < CASE_QTY) {
             command++;
         }
 
@@ -186,21 +185,22 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
                 if (ret == pdPASS) {
                     frame_processor_instance[command].queue_receive = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
                     if (frame_processor_instance[command].queue_receive != NULL) {
-                        frame_processor_instance[command].queue_send = main_app_instance->queue;
+                        frame_processor_instance[command].queue_send = frame_obj.buffer_handler.queue_transmit;
                         frame_processor_instance[command].is_active = TRUE;
                     }
                 }
             }
             if (frame_processor_instance[command].is_active == TRUE) {
-                xQueueSend(frame_processor_instance[command].queue_receive, &frame_obj.frame, 0);
+                xQueueSend(frame_processor_instance[command].queue_receive, &frame, 0);
             }
         }
         else {
-            snprintf(frame_obj.frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
-            frame_obj.frame.data_size = ERROR_MSG_SIZE;
+            snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
+            frame.data_size = ERROR_MSG_SIZE;
+            xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);
         }
-        xQueueReceive(main_app_instance->queue, &frame_obj.frame, portMAX_DELAY);
-        C2_FRAME_PACKER_Print(&frame_obj);
+        
+        
     }
 }
 

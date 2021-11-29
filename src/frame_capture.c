@@ -120,8 +120,8 @@ frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
     frame_capture->crc = 0;
     frame_capture->frame_active = FALSE;
     frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
-    frame_capture->buffer_handler.queue = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-    configASSERT(frame_capture->buffer_handler.queue != NULL);
+    frame_capture->buffer_handler.queue_receive = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
+    configASSERT(frame_capture->buffer_handler.queue_receive != NULL);
     frame_capture->buffer_handler.pool = pool;
     frame_capture->uart = uart;
 
@@ -225,10 +225,10 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
                     if (frame_capture->buff_ind >= FRAME_MIN_SIZE) {  // se previene un EOM en ID o sin CRC
                         frame_capture->raw_frame.data_size = frame_capture->buff_ind - CHARACTER_SIZE_CRC; // Se toma el tamaño de datos sin CRC
                         if (C2_FRAME_CAPTURE_CheckCRC(frame_capture->raw_frame, frame_capture->crc)) {
-                            if (frame_capture->buffer_handler.queue != NULL) {
+                            if (frame_capture->buffer_handler.queue_receive != NULL) {
                                 frame_capture->state = FRAME_CAPTURE_STATE_IDLE;
                                 frame_capture->frame_active = FALSE;                                
-                                if (xQueueSendFromISR(frame_capture->buffer_handler.queue, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
+                                if (xQueueSendFromISR(frame_capture->buffer_handler.queue_receive, &frame_capture->raw_frame, &px_higher_priority_task_woken) == pdTRUE) {
                                     // Se envía la cola de FRAME_PACKER para ser empaquetado y enviado a la capa 3
                                     error = FALSE;          // En caso de que se hayan pasado todas las validaciones exitosamente, se limpia el flag de error 
                                     xTimerStopFromISR( frame_capture->xTimer_time_out, &px_higher_priority_task_woken );    // Se detiene el timer cuando arriba el EOM para evitar que siga actuando hasta que no llegue un nuevo EOM

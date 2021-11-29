@@ -56,7 +56,8 @@ typedef struct {
  */
 typedef struct {
     QMPool *pool;
-    QueueHandle_t queue;
+    QueueHandle_t queue_receive;
+    QueueHandle_t queue_transmit;
     SemaphoreHandle_t semaphore;
 } frame_buffer_handler_t;
 
@@ -67,9 +68,9 @@ typedef struct {
  * @param uartMap_t -> uart de transmisión de la instancia
  */
 typedef struct {
-    frame_t frame;
-    frame_buffer_handler_t buffer_handler;
     uartMap_t uart;
+    frame_buffer_handler_t buffer_handler;
+    frame_t frame;
 } frame_class_t;
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 

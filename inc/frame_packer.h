@@ -25,10 +25,8 @@ extern "C" {
 /**
  * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
  * 
- * @param app_buffer_handler_receive Manejador que contiene el contexto (cola, semaforo y puntero a pool) 
- * @param uart Uart por donde se recibirán los datos.
- */
-void C2_FRAME_PACKER_Init(frame_buffer_handler_t *app_buffer_handler_receive, uartMap_t uart);
+  */
+void C2_FRAME_PACKER_Init(frame_class_t *frame_obj);
 
 /**
  * @brief Recibe los datos de FRAME_CAPTURE y los empaqueta (enmascara el ID y saca el CRC) y los envia a la capa superior.
@@ -36,14 +34,14 @@ void C2_FRAME_PACKER_Init(frame_buffer_handler_t *app_buffer_handler_receive, ua
  * @param frame          Puntero al objeto que cargara el frame recibido.
  * @param buffer_handler Buffer que contiene el contexto (cola y puntero a pool)
  */
-void C2_FRAME_PACKER_Receive(frame_t *frame, frame_buffer_handler_t *buffer_handler) ;
+void C2_FRAME_PACKER_Receive(frame_t *frame, QueueHandle_t queue_receive);
 /**
  * @brief Tarea que recibe y procesa los datos recibidos desde C3, le inserta el ID y CRC para ser impresos/enviados por la función de callback de
  * la ISR de Tx.
  *
  * @param frame_obj Estructura del tipo frame_class_t.
  */
-void C2_FRAME_PACKER_Print(frame_class_t *frame_obj);
+
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 
 /*=====[C++ - fin]===========================================================*/
