@@ -164,16 +164,17 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     
     while (TRUE) {
         frame_t frame;
-        C2_FRAME_PACKER_Receive(&frame, frame_obj.buffer_handler.queue_receive);
+        C2_FRAME_PACKER_Receive(&frame, frame_obj.buffer_handler.queue_receive);    // Se espera el paquete de la capa C2
 
         case_t command = CASE_PASCAL;
 
-        while (command_map[command] != *frame.data && command < CASE_QTY) {
+        while (command_map[command] != *frame.data && command < CASE_QTY) {  // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
             command++;
         }
 
+        // Si el comando es uno válido se procesa el paquete
         if (command < CASE_QTY) {
-            if (frame_processor_instance[command].is_active == FALSE) {
+            if (frame_processor_instance[command].is_active == FALSE) {  // Se crea el objeto sólo si no está activo
                 BaseType_t ret = xTaskCreate(
                     C3_FRAME_PROCESSOR_FrameTransformerObject,
                     (const char *) task_name_map[command],
@@ -191,13 +192,13 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
                 }
             }
             if (frame_processor_instance[command].is_active == TRUE) {
-                xQueueSend(frame_processor_instance[command].queue_receive, &frame, 0);
+                xQueueSend(frame_processor_instance[command].queue_receive, &frame, 0);     // Se envía el paquete al objeto correspondiente para procesar
             }
         }
-        else {
+        else {  // En caso de que el comando no sea válido se genera el mensaje de error
             snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
             frame.data_size = ERROR_MSG_SIZE;
-            xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);
+            xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
         }
         
         
@@ -208,7 +209,7 @@ void C3_FRAME_PROCESSOR_FrameTransformerObject(void *taskParmPtr) {
     frame_processor_t *frame_processor_instance = (frame_processor_t *)taskParmPtr;
     frame_t frame;
     while (TRUE) {
-        if(xQueueReceive(frame_processor_instance->queue_receive, &frame, 0)) {
+        if( xQueueReceive(frame_processor_instance->queue_receive, &frame, 0) == pdTRUE ) {
             frame_processor_instance->callback(&frame);
             xQueueSend(frame_processor_instance->queue_send, &frame, 0);
         }
@@ -234,12 +235,12 @@ static void C3_FRAME_PROCESSOR_ToSnake(frame_t *frame_obj) {
 }
 
 static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
-    WordProcessorCallback CallbackFunc[CASE_QTY] = {
+    WordProcessorCallback CallbackFunc[CASE_QTY] = {    // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
         [CASE_SNAKE]  = C3_FRAME_PROCESSOR_WordLowerInitial,
         [CASE_CAMEL]  = C3_FRAME_PROCESSOR_WordUpperInitial,
         [CASE_PASCAL] = C3_FRAME_PROCESSOR_WordUpperInitial,
     };
-    uint8_t out_increment_map[CASE_QTY] = {
+    uint8_t out_increment_map[CASE_QTY] = {  
         [CASE_SNAKE]  = sizeof((char)ASCII_UNDERSCORE),
         [CASE_CAMEL]  = 0,
         [CASE_PASCAL] = 0,
@@ -266,7 +267,7 @@ static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
             }
             break;
         }
-        else if (frame_obj->data[index_in] == ASCII_UNDERSCORE || frame_obj->data[index_in] == ASCII_SPACE) {
+        else if (frame_obj->data[index_in] == ASCII_UNDERSCORE || frame_obj->data[index_in] == ASCII_SPACE) {   // Si es snake y viene un '_' o ' ' se pone '_'. Si es camel o Pascal se descarta 
             frame_out[index_out] = TRANSITION_CHAR(cmd_case,frame_out[index_out]);
             index_out += out_increment_map[cmd_case];
             index_in++;
