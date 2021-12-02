@@ -24,19 +24,19 @@ typedef enum {
     ERROR_QTY,
 } error_t;
 
-#define POOL_PACKET_SIZE      MAX_BUFFER_SIZE
-#define POOL_PACKET_COUNT     (QUEUE_SIZE)
-#define POOL_SIZE_BYTES       (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
-#define CHECK_LOWERCASE(x) ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
-#define CHECK_UPPERCASE(x) ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
-#define CHECK_OPCODE(x) ((x == 'S' || x == 'C' || x == 'P') ? ERROR_NONE : ERROR_INVALID_OPCODE)
-#define TO_UPPERCASE(x) (x - 32)
-#define TO_LOWERCASE(x) (x + 32)
-#define INVALID_FRAME           (-1)
-#define ERROR_MSG_FORMAT        "E%.2d"
-#define ASCII_UNDERSCORE         '_'
-#define ASCII_SPACE             ' '
-#define TRANSITION_CHAR(x, current_char)      ((x == CASE_SNAKE) ? ASCII_UNDERSCORE : current_char)
+#define POOL_PACKET_SIZE                    MAX_BUFFER_SIZE
+#define POOL_PACKET_COUNT                   (QUEUE_SIZE)
+#define POOL_SIZE_BYTES                     (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
+#define CHECK_LOWERCASE(x)                  ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
+#define CHECK_UPPERCASE(x)                  ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
+#define CHECK_OPCODE(x)                     ((x == 'S' || x == 'C' || x == 'P') ? ERROR_NONE : ERROR_INVALID_OPCODE)
+#define TO_UPPERCASE(x)                     (x - 32)
+#define TO_LOWERCASE(x)                     (x + 32)
+#define INVALID_FRAME                       (-1)
+#define ERROR_MSG_FORMAT                    "E%.2d"
+#define ASCII_UNDERSCORE                     '_'
+#define ASCII_SPACE                         ' '
+#define TRANSITION_CHAR(x, current_char)    ((x == CASE_SNAKE) ? ASCII_UNDERSCORE : current_char)
 /*=====[Definición de tipos de datos privados]===================================*/
 
 typedef int8_t (*WordProcessorCallback)(char *, char *);
@@ -136,7 +136,7 @@ bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     main_processor_t *main_app_instance = (main_processor_t *)taskParmPtr;
 
-    uint8_t *memory_pool = (uint8_t *)pvPortMalloc(POOL_SIZE_BYTES);
+    char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
     configASSERT(memory_pool != NULL);
 
     frame_processor_t frame_processor_instance[CASE_QTY];
@@ -158,7 +158,7 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     frame_obj.uart = (uartMap_t) main_app_instance->uart;
     frame_obj.buffer_handler.queue_transmit  = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
     configASSERT(frame_obj.buffer_handler.queue_transmit  != NULL);
-    QMPool_init(&pool, (uint8_t *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
+    QMPool_init(&pool, (char *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
     C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
     
@@ -174,7 +174,9 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
 
         // Si el comando es uno válido se procesa el paquete
         if (command < CASE_QTY) {
+            vTaskSuspendAll();
             if (frame_processor_instance[command].is_active == FALSE) {  // Se crea el objeto sólo si no está activo
+                xTaskResumeAll();
                 BaseType_t ret = xTaskCreate(
                     C3_FRAME_PROCESSOR_FrameTransformerObject,
                     (const char *) task_name_map[command],
@@ -192,6 +194,9 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
                     }
                     xTaskResumeAll();
                 }
+            }
+            else {
+                xTaskResumeAll();
             }
             vTaskSuspendAll();
             if (frame_processor_instance[command].is_active == TRUE) {
@@ -255,7 +260,7 @@ static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
         [CASE_PASCAL] = 0,
     };
     char frame_out[MAX_BUFFER_SIZE];    // su usa para armar la cadena de salida
-    frame_out[0] = frame_obj->data[0];  // se copia el comando
+    *frame_out = *frame_obj->data;  // se copia el comando
 
     int index_in = CHARACTER_SIZE_CMD;  // índice en cadena de entrada
     int index_out = CHARACTER_SIZE_CMD; // índice en cadena de salida

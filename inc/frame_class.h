@@ -27,7 +27,8 @@ extern "C" {
 #define CHARACTER_SIZE_ID           4
 #define CHARACTER_SIZE_CRC          2
 #define CHARACTER_SIZE_CMD          1
-#define QUEUE_SIZE                  7
+#define CHARACTER_SIZE_SOM          1
+#define QUEUE_SIZE                  10
 #define START_OF_MESSAGE            '('
 #define END_OF_MESSAGE              ')'
 #define CHARACTER_END_OF_PACKAGE    '\0'
@@ -36,8 +37,8 @@ extern "C" {
 #define WORD_MAX_QTY                15
 #define WORD_MIN_QTY                1
 #define UNDERSCORE_MAX_QTY      WORD_MAX_QTY // no se puede al final pero si al principio segun los requerimientos. por lo que puede haber un guion por palabra
-#if ((WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 200)
-    #define MAX_BUFFER_SIZE         (WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
+#if ( ( CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 200)
+    #define MAX_BUFFER_SIZE         ( CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
 #else
     #define MAX_BUFFER_SIZE         200
 #endif

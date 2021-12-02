@@ -113,7 +113,7 @@ void C2_FRAME_CAPTURE_vTimerCallback (TimerHandle_t xTimer);
 /*=====[Implementación de funciones públicas]=================================*/
 
 frame_buffer_handler_t *C2_FRAME_CAPTURE_ObjInit(QMPool *pool, uartMap_t uart) {
-    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t)); //se libera luego de la llamada a la función en C2_FRAME_PACKER_Receive
+    frame_capture_t *frame_capture = pvPortMalloc(sizeof(frame_capture_t));
     configASSERT(frame_capture != NULL);
     // inicialización del objeto
     frame_capture->buff_ind = 0;    
