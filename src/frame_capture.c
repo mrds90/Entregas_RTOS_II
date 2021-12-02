@@ -203,10 +203,7 @@ static void C2_FRAME_CAPTURE_UartRxISR(void *parameter) {
         switch (character) {
             case START_OF_MESSAGE:
                 if (!frame_capture->frame_active) {
-                    UBaseType_t uxSavedInterruptStatus;
-                    uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
-                    frame_capture->raw_frame.data = (char *) QMPool_get(frame_capture->buffer_handler.pool, 0);
-                    taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
+                    frame_capture->raw_frame.data = (char *) QMPool_get(frame_capture->buffer_handler.pool, 0U);
                 } // si frame_active = 1 se estaba procesando dato válido, pero con el SOM se reinicia sobre el mismo pool
 
                 if (frame_capture->raw_frame.data != NULL) {
