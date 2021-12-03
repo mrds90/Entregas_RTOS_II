@@ -89,24 +89,63 @@ static const char *const task_name_map[CASE_QTY] = {
  */
 static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr);
 
+/**
+ * @brief función para procesar el frame según el comando que recibe.
+ *
+ * @param frame_obj puntero al frame recibido para procesar.
+ * @param cmd_case referencia al formato de conversión de la trama.
+ *  
+ */
 static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case);
 
+/**
+ * @brief Tarea que recibe las tramas, llama a la función de callbak y envía las tramas para transmitir.
+ *
+ * @param taskParmPtr puntero de tipo main_processor que contiene contexto de la instancia del objeto.
+ */
 static void C3_FRAME_PROCESSOR_FrameTransformerObject(void *taskParmPtr);
 
+/**
+ * @brief Función que recibe la trama y llama a la función de procesamiento de trama con el comando de tranformación a camel
+ *
+ * @param frame_obj Trama recibida a ser transformada
+ */
 static void C3_FRAME_PROCESSOR_ToCamel(frame_t *frame_obj);
 
+/**
+ * @brief Función que recibe la trama y llama a la función de procesamiento de trama con el comando de tranformación a pascal
+ *
+ * @param frame_obj Trama recibida a ser transformada
+ */
 static void C3_FRAME_PROCESSOR_ToPascal(frame_t *frame_obj);
 
+/**
+ * @brief Función que recibe la trama y llama a la función de procesamiento de trama con el comando de tranformación a snake
+ *
+ * @param frame_obj Trama recibida a ser transformada
+ */
 static void C3_FRAME_PROCESSOR_ToSnake(frame_t *frame_obj);
 
+/**
+ * @brief Procesa una palabra cualquiera y le pone la primera letra en minúscula.
+ *
+ * @param word_in Puntero de la cadena recibida que está siendo procesada.
+ * @param word_out Puntero de la cadena de salida con los datos ya procesados.
+ */
 static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out);
 
+/**
+ * @brief Procesa una palabra cualquiera y le pone la primera letra en mayúscula.
+ *
+ * @param word_in Puntero de la cadena recibida que está siendo procesada.
+ * @param word_out Puntero de la cadena de salida con los datos ya procesados.
+ */
 static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out);
 
 /*=====[Implementación de funciones públicas]=================================*/
 
 bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
-    main_processor_t *main_app_instance = (main_processor_t *)pvPortMalloc(sizeof(frame_processor_t));
+    main_processor_t *main_app_instance = (main_processor_t *)pvPortMalloc(sizeof(main_processor_t));
 
     main_app_instance->task_function = C3_FRAME_PROCESSOR_Task;
     main_app_instance->uart = uart;
@@ -259,8 +298,8 @@ static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
         [CASE_CAMEL]  = 0,
         [CASE_PASCAL] = 0,
     };
-    char frame_out[MAX_BUFFER_SIZE];    // su usa para armar la cadena de salida
-    *frame_out = *frame_obj->data;  // se copia el comando
+    char frame_out[MAX_BUFFER_SIZE];    // se usa para armar la cadena de salida
+    *frame_out = *frame_obj->data;      // se copia el comando
 
     int index_in = CHARACTER_SIZE_CMD;  // índice en cadena de entrada
     int index_out = CHARACTER_SIZE_CMD; // índice en cadena de salida
@@ -271,12 +310,12 @@ static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
         index_in += character_count;
         index_out += character_count;
 
-        if (++qty_words > WORD_MAX_QTY) {
+        if (++qty_words > WORD_MAX_QTY) {           // Si se pasa la cantidad máxima de palabras se sale
             error_flag = ERROR_INVALID_DATA;
             break;
         }
-        if (frame_obj->data[index_in] == CHARACTER_END_OF_PACKAGE) {              // Condición de salida de un frame correcto
-            if (qty_words < WORD_MIN_QTY) {
+        if (frame_obj->data[index_in] == CHARACTER_END_OF_PACKAGE) {        // Condición de salida de un frame correcto
+            if (qty_words < WORD_MIN_QTY) {                                 // Si la cantidad de palabras es menor a la permitida se considera error.
                 error_flag = ERROR_INVALID_DATA;
             }
             break;
