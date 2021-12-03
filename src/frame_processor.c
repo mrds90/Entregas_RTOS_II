@@ -19,11 +19,12 @@ typedef enum {
     ERROR_NONE,
     ERROR_INVALID_DATA,
     ERROR_INVALID_OPCODE,
-    ERROR_MSG_SIZE,
+    ERROR_SYSTEM,
 
     ERROR_QTY,
 } error_t;
 
+#define ERROR_MSG_SIZE                      3
 #define POOL_PACKET_SIZE                    MAX_BUFFER_SIZE
 #define POOL_PACKET_COUNT                   (QUEUE_SIZE)
 #define POOL_SIZE_BYTES                     (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
@@ -233,6 +234,11 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
                     }
                     xTaskResumeAll();
                 }
+                else {  // Error al crear Objeto Activo --> Se envía ERROR_SYSTEM R_AO_9
+                    snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
+                    frame.data_size = ERROR_MSG_SIZE;
+                    xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
+                }                
             }
             else {
                 xTaskResumeAll();
