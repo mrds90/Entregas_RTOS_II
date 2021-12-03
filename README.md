@@ -85,14 +85,17 @@ Si en un futuro se observa que el sistema puede resolverse sin eliminaciones se 
 | R_C2_21 | C2_FRAME_CAPTURE_UartRxISR --> C2_FRAME_CAPTURE_CheckCRC - el paquete no se envía a menos que el crc calculado sea igual al recibido |
 | R_C2_22 | C2_FRAME_PACKER_Receive - Recibe a través de una cola un puntero a una estructura frame_t que contiene un puntero a los datos y el tamaño de los mismos. Esta función es llamada dentro de la aplicación |
 |  |  | 
-| R_AO_1  |   | 
-| R_AO_2  |   | 
-| R_AO_3  |   | 
-| R_AO_4  |   | 
-| R_AO_5  |   | 
-| R_AO_6  |   | 
-| R_AO_7  |   | 
-| R_AO_8  |   | 
+| R_AO_1  | frame_procesor.c de rama objeto_activo se resuelve según modelo de objeto activo en **C3_FRAME_PROCESSOR_FrameTransformerObject** | 
+| R_AO_2_a  | C3_FRAME_PROCESSOR_Task -> **C2_FRAME_PACKER_Receive** Función que retorna el paquete a procesar.| 
+| R_AO_2_b  | C3_FRAME_PROCESSOR_Task ->  | 
+| R_AO_3_a1  |  C3_FRAME_PROCESSOR_Task -> Se lee el comando del frame, se chequea que se válido y que el frame no esté activo  | 
+| R_AO_3_a2  | C3_FRAME_PROCESSOR_FrameTransformerObject -> Se llama a la función de callback asociada al comando recibido. | 
+| R_AO_3_a3  |  C3_FRAME_PROCESSOR_Task -> **xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0)** - Se envía señal de error si el comando no fue válido | 
+| R_AO_4_b1  | C3_FRAME_PROCESSOR_Task - frame_processor_instance[command].queue_send = frame_obj.buffer_handler.queue_transmit - se asocian punteros a queue para envío de dato a C2 | 
+| R_AO_5  | C3_FRAME_PROCESSOR_ToCamel - C3_FRAME_PROCESSOR_ToPascal - C3_FRAME_PROCESSOR_ToSnake -> Llaman a C3_FRAME_PROCESSOR_Transform con distintos parámetros | 
+| R_AO_6  | C3_FRAME_PROCESSOR_Task ->  if (frame_processor_instance[command].is_active == FALSE) Se crea si no existe el objeto. | 
+| R_AO_7  | C3_FRAME_PROCESSOR_FrameTransformerObject ->  **xQueueSend(frame_processor_instance->queue_send, &frame, 0)**  | 
+| R_AO_8  | C3_FRAME_PROCESSOR_FrameTransformerObject -> Cuando no quedan elementos en la cola se hace vQueueDelete y vTaskDelete  | 
 | R_AO_9  |   |
 
 
