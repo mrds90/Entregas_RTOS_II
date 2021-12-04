@@ -141,21 +141,28 @@ void QMPool_init( QMPool * const me, void * const poolSto,
 */
 void QMPool_put( QMPool * const me, void *b )
 {
-
-    //UBaseType_t uxSavedInterruptStatus;
     /** @pre # free blocks cannot exceed the total # blocks and
     * the block pointer must be from this pool.
     */
 
-    // portENTER_CRITICAL(); //Enter on critical section
-    //uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+    unsigned long ulSavedInterruptMask;
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portENTER_CRITICAL(); //Enter on critical section
+    }
+    else {
+        ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+    }
 
     ( ( QFreeBlock * )b )->next = ( QFreeBlock * )me->free_head; /* link into list */
     me->free_head = b;      /* set as new head of the free list */
     ++me->nFree;            /* one more free block in this pool */
-    //taskEXIT_CRITICAL_FROM_ISR( uxSavedInterruptStatus );
-
-    // portEXIT_CRITICAL(); //Exit from critical section
+    
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portEXIT_CRITICAL(); //Exit from critical section
+    }
+    else {
+        portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+    }    
 }
 
 /****************************************************************************/
@@ -190,10 +197,14 @@ void QMPool_put( QMPool * const me, void *b )
 void *QMPool_get( QMPool * const me, unsigned short const margin )
 {
     QFreeBlock *fb;
-
-    //portENTER_CRITICAL(); //Enter on critical section
     unsigned long ulSavedInterruptMask;
-    ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portENTER_CRITICAL(); //Enter on critical section
+    }
+    else {
+        ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+    }
 
     /* have more free blocks than the requested margin? */
     if ( me->nFree > ( QMPoolCtr )margin )
@@ -238,8 +249,12 @@ void *QMPool_get( QMPool * const me, unsigned short const margin )
 
     }
 
-    //portEXIT_CRITICAL(); //Exit from critical section
-    portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portEXIT_CRITICAL(); //Exit from critical section
+    }
+    else {
+        portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+    }
 
     return fb;  /* return the block or NULL pointer to the caller */
 }
@@ -259,11 +274,22 @@ unsigned short QMPool_getMin( QMPool * const me )
 {
     unsigned short min;
 
-    //portENTER_CRITICAL(); //Enter on critical section
+    unsigned long ulSavedInterruptMask;
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portENTER_CRITICAL(); //Enter on critical section
+    }
+    else {
+        ulSavedInterruptMask = portSET_INTERRUPT_MASK_FROM_ISR();
+    }
 
     min = me->nMin;
 
-    //portEXIT_CRITICAL(); //Exit from critical section
+    if( pdFALSE == xPortIsInsideInterrupt()) {
+        portEXIT_CRITICAL(); //Exit from critical section
+    }
+    else {
+        portCLEAR_INTERRUPT_MASK_FROM_ISR( ulSavedInterruptMask );
+    }
 
     return min;
 }
