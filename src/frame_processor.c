@@ -13,6 +13,7 @@
 #include "frame_processor.h"
 #include "frame_packer.h"
 #include "string.h"
+#include "AO.h"
 
 /*=====[Definición de macros de constantes privadas]==============================*/
 typedef enum {
@@ -43,7 +44,6 @@ typedef enum {
 typedef int8_t (*WordProcessorCallback)(char *, char *);
 typedef void (*FrameProcessorCallback)(frame_t *frame_obj);
 typedef struct {
-    TaskFunction_t task_function;
     uartMap_t uart;
     bool_t is_active;
 } main_processor_t;
@@ -148,45 +148,68 @@ static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out)
 bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     main_processor_t *main_app_instance = (main_processor_t *)pvPortMalloc(sizeof(main_processor_t));
 
-    main_app_instance->task_function = C3_FRAME_PROCESSOR_Task;
     main_app_instance->uart = uart;
     bool_t ret = FALSE;
     static bool_t uart_used[UART_MAXNUM] = {FALSE};
+    
     if (uart < UART_MAXNUM && uart >= 0) {
         if (!uart_used[uart]) {
             uart_used[uart] = TRUE;
             BaseType_t xReturned = xTaskCreate(
-                main_app_instance->task_function,
-                (const char *)"Main Processor",
+                C3_FRAME_PROCESSOR_Task_Rx,
+                (const char *)"Main Processor Rx",
                 configMINIMAL_STACK_SIZE * 3,
                 (void *) main_app_instance,
                 tskIDLE_PRIORITY + 1,
                 NULL
                 );
             if (xReturned == pdPASS) {
-                main_app_instance->is_active = TRUE;
+                ret = TRUE;
             }
         }
     }
+
+    BaseType_t xReturned = xTaskCreate(
+        C3_FRAME_PROCESSOR_Task_Tx,
+        (const char *)"Main Processor Tx",
+        configMINIMAL_STACK_SIZE * 3,
+        (void *) main_app_instance,
+        tskIDLE_PRIORITY + 1,
+        NULL
+        );
+    if (xReturned == pdPASS) {
+        ret = TRUE & ret;   // Si no se pudo crear alguna de las tareas se devuelve FALSE
+    }    
+
     return ret;
 }
 
 /*=====[Implementación de Tareas]================================*/
+static void C3_FRAME_PROCESSOR_Task_Tx(void *taskParmPtr) {
+    frame_class_t *frame_obj = (frame_class_t *) task_parameter;
 
-static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
+    while (TRUE) {
+        if ( xQueueReceive(frame_obj->buffer_handler.queue_transmit, &frame_obj->frame, portMAX_DELAY) == pdTRUE ) {
+            C2_FRAME_PACKER_Print(frame_obj->frame);
+        }
+    }
+}
+
+
+static void C3_FRAME_PROCESSOR_Task_Rx(void *taskParmPtr) {
     main_processor_t *main_app_instance = (main_processor_t *)taskParmPtr;
 
     char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
     configASSERT(memory_pool != NULL);
 
-    frame_processor_t frame_processor_instance[CASE_QTY];
+    // frame_processor_t frame_processor_instance[CASE_QTY];
 
-    frame_processor_instance[CASE_SNAKE].callback = C3_FRAME_PROCESSOR_ToSnake;
-    frame_processor_instance[CASE_CAMEL].callback = C3_FRAME_PROCESSOR_ToCamel;
-    frame_processor_instance[CASE_PASCAL].callback = C3_FRAME_PROCESSOR_ToPascal;
-    for (int i = 0; i < CASE_QTY; i++) {
-        frame_processor_instance[i].is_active = FALSE;
-    }
+    // frame_processor_instance[CASE_SNAKE].callback = C3_FRAME_PROCESSOR_ToSnake;
+    // frame_processor_instance[CASE_CAMEL].callback = C3_FRAME_PROCESSOR_ToCamel;
+    // frame_processor_instance[CASE_PASCAL].callback = C3_FRAME_PROCESSOR_ToPascal;
+    // for (int i = 0; i < CASE_QTY; i++) {
+    //     frame_processor_instance[i].is_active = FALSE;
+    // }
 
     QMPool pool;
     frame_class_t frame_obj;
@@ -200,54 +223,83 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     configASSERT(frame_obj.buffer_handler.queue_transmit  != NULL);
     QMPool_init(&pool, (char *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
-    C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
+    // DEBERIAMOS INICIALIZAR LA TAREA EN C3_FRAME_PROCESSOR_Init --> //C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
+
+    activeObject_t frameToPascalAo;
+	frameToPascalAo.itIsAlive = FALSE;
+    activeObject_t frameToCamelAo;
+	frameToCamelAo.itIsAlive = FALSE;
+    activeObject_t frameToSnakeAo;
+	frameToSnakeAo.itIsAlive = FALSE;        
     
     while (TRUE) {
-        frame_t frame;
+        frame_t frame;  // Se utilizará para guardar el paquete proveniente de C2
         C2_FRAME_PACKER_Receive(&frame, frame_obj.buffer_handler.queue_receive);    // Se espera el paquete de la capa C2
 
         case_t command = CASE_PASCAL;
 
+        // Se obtiene el evento
         while (command_map[command] != *frame.data && command < CASE_QTY) {  // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
             command++;
         }
 
         // Si el comando es uno válido se procesa el paquete
         if (command < CASE_QTY) {
-            vTaskSuspendAll();
-            if (frame_processor_instance[command].is_active == FALSE) {  // Se crea el objeto sólo si no está activo
-                xTaskResumeAll();
-                BaseType_t ret = xTaskCreate(
-                    C3_FRAME_PROCESSOR_FrameTransformerObject,
-                    (const char *) task_name_map[command],
-                    configMINIMAL_STACK_SIZE * 3,
-                    (void *) &frame_processor_instance[command],
-                    tskIDLE_PRIORITY + 1,
-                    NULL
-                    );
-                if (ret == pdPASS) {
-                    vTaskSuspendAll();
-                    frame_processor_instance[command].queue_receive = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
-                    if (frame_processor_instance[command].queue_receive != NULL) {
-                        frame_processor_instance[command].queue_send = frame_obj.buffer_handler.queue_transmit;
-                        frame_processor_instance[command].is_active = TRUE;
-                    }
-                    xTaskResumeAll();
-                }
-                else {  // Error al crear Objeto Activo --> Se envía ERROR_SYSTEM R_AO_9
-                    snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
-                    frame.data_size = ERROR_MSG_SIZE;
-                    xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
-                }                
+
+            switch(command) {
+                case CASE_PASCAL:
+                    if( frameToPascalAo.itIsAlive == FALSE ) {                        
+                        activeObjectOperationCreate( &frameToPascalAo, C3_FRAME_PROCESSOR_ToPascal, activeObjectTask , response_queue);   // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                    }          
+                    				
+				    activeObjectEnqueue( &frameToPascalAo, &frame );    // Y enviamos el dato a la cola para procesar.
+                    break;
+
+                case CASE_CAMEL:
+                    if( frameToCamelAo.itIsAlive == FALSE ) {                        
+                        activeObjectOperationCreate( &frameToCamelAo, C3_FRAME_PROCESSOR_ToCamel, activeObjectTask , response_queue);   // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                    }          
+                    				
+				    activeObjectEnqueue( &frameToCamelAo, &frame );    // Y enviamos el dato a la cola para procesar.                
+                    break;
+
+                case CASE_SNAKE:
+                    if( frameToSnakeAo.itIsAlive == FALSE ) {                        
+                        activeObjectOperationCreate( &frameToSnakeAo, C3_FRAME_PROCESSOR_ToSnake, activeObjectTask , response_queue);   // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                    }          
+                    				
+				    activeObjectEnqueue( &frameToSnakeAo, &frame );    // Y enviamos el dato a la cola para procesar.                
+                    break;
             }
-            else {
-                xTaskResumeAll();
-            }
-            vTaskSuspendAll();
-            if (frame_processor_instance[command].is_active == TRUE) {
-                xQueueSend(frame_processor_instance[command].queue_receive, &frame, 0);     // Se envía el paquete al objeto correspondiente para procesar
-            }
-            xTaskResumeAll();
+            
+            // if (frame_processor_instance[command].is_active == FALSE) {  // Se crea el objeto sólo si no está activo                
+            //     BaseType_t ret = xTaskCreate(
+            //         C3_FRAME_PROCESSOR_FrameTransformerObject,
+            //         (const char *) task_name_map[command],
+            //         configMINIMAL_STACK_SIZE * 3,
+            //         (void *) &frame_processor_instance[command],
+            //         tskIDLE_PRIORITY + 1,
+            //         NULL
+            //         );
+            //     if (ret == pdPASS) {
+                    
+            //         frame_processor_instance[command].queue_receive = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
+            //         if (frame_processor_instance[command].queue_receive != NULL) {
+            //             frame_processor_instance[command].queue_send = frame_obj.buffer_handler.queue_transmit;
+            //             frame_processor_instance[command].is_active = TRUE;
+            //         }
+                    
+            //     }
+            //     else {  // Error al crear Objeto Activo --> Se envía ERROR_SYSTEM R_AO_9
+            //         snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
+            //         frame.data_size = ERROR_MSG_SIZE;
+            //         xQueueSend(frame_obj.buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
+            //     }                
+            // }
+
+            // if (frame_processor_instance[command].is_active == TRUE) {
+            //     xQueueSend(frame_processor_instance[command].queue_receive, &frame, 0);     // Se envía el paquete al objeto correspondiente para procesar
+            // }
         }
         else {  // En caso de que el comando no sea válido se genera el mensaje de error
             snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
@@ -259,38 +311,41 @@ static void C3_FRAME_PROCESSOR_Task(void *taskParmPtr) {
     }
 }
 
-void C3_FRAME_PROCESSOR_FrameTransformerObject(void *taskParmPtr) {
-    frame_processor_t *frame_processor_instance = (frame_processor_t *)taskParmPtr;
-    frame_t frame;
+// void C3_FRAME_PROCESSOR_FrameTransformerObject(void *taskParmPtr) {
+//     frame_processor_t *frame_processor_instance = (frame_processor_t *)taskParmPtr;
+//     frame_t frame;
     
-    while (TRUE) {
-        if(frame_processor_instance->is_active == TRUE) {
-            xQueueReceive(frame_processor_instance->queue_receive, &frame, portMAX_DELAY);
-            frame_processor_instance->callback(&frame);
-            xQueueSend(frame_processor_instance->queue_send, &frame, 0);  // Se envía en paquete para transmitir
-            if(uxQueueMessagesWaiting( frame_processor_instance->queue_receive ) == 0) {
-                vTaskSuspendAll();
-                frame_processor_instance->is_active = FALSE;
-                vQueueDelete(frame_processor_instance->queue_receive);
-                frame_processor_instance->queue_receive = NULL;
-                xTaskResumeAll();
-                vTaskDelete(NULL);
-            }            
-        }
-    }       
-}
+//     while (TRUE) {
+//         if(uxQueueMessagesWaiting( frame_processor_instance->queue_receive ) != 0) {
+//             xQueueReceive(frame_processor_instance->queue_receive, &frame, portMAX_DELAY);
+//             frame_processor_instance->callback(&frame);
+//             xQueueSend(frame_processor_instance->queue_send, &frame, 0);  // Se envía en paquete para transmitir
+//         }
+//         else {
+//             vTaskSuspendAll();
+//             frame_processor_instance->is_active = FALSE;
+//             vQueueDelete(frame_processor_instance->queue_receive);
+//             frame_processor_instance->queue_receive = NULL;
+//             xTaskResumeAll();
+//             vTaskDelete(NULL);               
+//         }
+//     }       
+// }
     
 /*=====[Implementación de funciones privadas]================================*/
-static void C3_FRAME_PROCESSOR_ToCamel(frame_t *frame_obj) {
+static void C3_FRAME_PROCESSOR_ToCamel(activeObject_t* caller_ao, frame_t *frame_obj) {
     C3_FRAME_PROCESSOR_Transform(frame_obj, CASE_CAMEL);
+    xQueueSend ( caller_ao->activeObjectQueue , &frame_obj , 0);
 }
 
-static void C3_FRAME_PROCESSOR_ToPascal(frame_t *frame_obj) {
+static void C3_FRAME_PROCESSOR_ToPascal(activeObject_t* caller_ao, frame_t *frame_obj) {
     C3_FRAME_PROCESSOR_Transform(frame_obj, CASE_PASCAL);
+    xQueueSend ( caller_ao->activeObjectQueue , &frame_obj , 0);
 }
 
-static void C3_FRAME_PROCESSOR_ToSnake(frame_t *frame_obj) {
+static void C3_FRAME_PROCESSOR_ToSnake(activeObject_t* caller_ao, frame_t *frame_obj) {
     C3_FRAME_PROCESSOR_Transform(frame_obj, CASE_SNAKE);
+    xQueueSend ( caller_ao->activeObjectQueue , &frame_obj , 0);
 }
 
 static void C3_FRAME_PROCESSOR_Transform(frame_t *frame_obj, case_t cmd_case) {
