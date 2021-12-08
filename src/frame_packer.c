@@ -36,17 +36,6 @@
 void C2_FRAME_PACKER_Init(frame_class_t *frame_obj) {
     frame_obj->buffer_handler.queue_receive = C2_FRAME_CAPTURE_ObjInit(frame_obj->buffer_handler.pool, frame_obj->uart)->queue_receive;
     C2_FRAME_TRANSMIT_ObjInit(&frame_obj->buffer_handler); // Se envía para asignación de semáforo de buffer_handler de transmisión
-
-    // BaseType_t xReturned = xTaskCreate(
-    //     C2_FRAME_PACKER_Print,
-    //     "Print",
-    //     configMINIMAL_STACK_SIZE * 3,
-    //     (void *) frame_obj,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL
-    //     )
-    // ;
-    // configASSERT(xReturned == pdPASS);
 }
 
 void C2_FRAME_PACKER_Receive(frame_t *frame, QueueHandle_t queue_receive) {

@@ -12,12 +12,18 @@
 
 /*=====[Inclusión de dependencias de funciones públicas]=====================*/
 #include "sapi.h"
+#include "qmpool.h"
 
 /*=====[C++ - comienzo]======================================================*/
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct {
+    QMPool pool;
+    uartMap_t uart; 
+} app_t;
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 /**
@@ -27,7 +33,7 @@ extern "C" {
  * @param uart puerto de comunicación UART pasado desde int main para inicializar
  * la instancia
  */
-bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart);
+bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app);
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 

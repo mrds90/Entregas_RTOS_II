@@ -167,5 +167,5 @@ bool_t activeObjectOperationCreate( activeObject_t* ao, callBackActObj_t callbac
     /* cargo miembro que no estaba */
     ao->activeObjectQueue = response_queue;
     /* creo oa padre */
-    activeObjectCreate( ao, callback, taskForAO );
+    return (activeObjectCreate( ao, callback, taskForAO ));
 }

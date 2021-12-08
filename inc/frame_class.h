@@ -69,9 +69,9 @@ typedef struct {
  * @param uartMap_t -> uart de transmisión de la instancia
  */
 typedef struct {
-    uartMap_t uart;
     frame_buffer_handler_t buffer_handler;
     frame_t frame;
+    uartMap_t uart;
 } frame_class_t;
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
