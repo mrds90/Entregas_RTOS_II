@@ -22,7 +22,7 @@ extern "C" {
 
 typedef struct {
     QMPool pool;
-    uartMap_t uart; 
+    uartMap_t uart;
 } app_t;
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/

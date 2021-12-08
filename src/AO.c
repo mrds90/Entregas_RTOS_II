@@ -1,6 +1,6 @@
 /*=============================================================================
  * Copyright (c) 2021, Franco Bucafusco <franco_bucafusco@yahoo.com.ar>
- * 					   Martin N. Menendez <mmenendez@fi.uba.ar>
+ *                     Martin N. Menendez <mmenendez@fi.uba.ar>
  * All rights reserved.
  * License: Free
  * Date: 2021/05/03
@@ -42,40 +42,36 @@
  *
  *===========================================================================*/
 
-bool_t activeObjectCreate( activeObject_t* ao, callBackActObj_t callback, TaskFunction_t taskForAO )
-{
+bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO) {
     // Una variable local para saber si hemos creado correctamente los objetos.
     BaseType_t retValue = pdFALSE;
 
     // Creamos la cola asociada a este objeto activo.
-    ao->ReceiveQueue = xQueueCreate( N_QUEUE_AO, sizeof( void* ) );
+    ao->ReceiveQueue = xQueueCreate(N_QUEUE_AO, sizeof(void *));
 
     // Asignamos la tarea al objeto activo.
     ao->taskName = taskForAO;
 
     // Si la cola se cre� sin inconvenientes.
-    if( ao->ReceiveQueue != NULL )
-    {
+    if (ao->ReceiveQueue != NULL) {
         // Asignamos el callback al objeto activo.
         ao->callbackFunc = callback;
 
         // Creamos la tarea asociada al objeto activo. A la tarea se le pasar� el objeto activo como par�metro.
-        retValue = xTaskCreate( ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE*2, ao, tskIDLE_PRIORITY+2, NULL );
+        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 2, ao, tskIDLE_PRIORITY + 2, NULL);
     }
 
     // Chequeamos si la tarea se cre� correctamente o no.
-    if( retValue == pdPASS )
-    {
+    if (retValue == pdPASS) {
         // Cargamos en la variable de estado del objeto activo el valor "true" para indicar que se ha creado.
         ao->itIsAlive = TRUE;
 
         // Devolvemos "true" para saber que el objeto activo se instanci� correctamente.
-        return( TRUE );
+        return(TRUE);
     }
-    else
-    {
+    else {
         // Caso contrario, devolvemos "false".
-        return( FALSE );
+        return(FALSE);
     }
 }
 
@@ -93,48 +89,42 @@ bool_t activeObjectCreate( activeObject_t* ao, callBackActObj_t callback, TaskFu
  *
  *===========================================================================*/
 
-void activeObjectTask( void* pvParameters )
-{
+void activeObjectTask(void *pvParameters) {
     // Una variable para evaluar la lectura de la cola.
     BaseType_t retQueueVal;
 
     // Una variable local para almacenar el dato desde la cola.
-     void*  auxValue;
+    void *auxValue;
 
     // Obtenemos el puntero al objeto activo.
-    activeObject_t* actObj = ( activeObject_t* ) pvParameters;
+    activeObject_t *actObj = ( activeObject_t * ) pvParameters;
 
     // Cuando hay un evento, lo procesamos.
-    while( TRUE )
-    {
+    while (TRUE) {
         // Verifico si hay elementos para procesar en la cola. Si los hay, los proceso.
-        if( uxQueueMessagesWaiting( actObj->ReceiveQueue ) )
-        {
+        if (uxQueueMessagesWaiting(actObj->ReceiveQueue)) {
             // Hago una lectura de la cola.
-            retQueueVal = xQueueReceive( actObj->ReceiveQueue, &auxValue, portMAX_DELAY );
+            retQueueVal = xQueueReceive(actObj->ReceiveQueue, &auxValue, portMAX_DELAY);
 
             // Si la lectura fue exitosa, proceso el dato.
-            if( retQueueVal )
-            {
+            if (retQueueVal) {
                 // Llamamos al callback correspondiente en base al comando que se le pas�.
                 /* TODO:INFO a la funcion llamante le mando el ao que la llamo coo referenca porq
                    es necesario */
-                ( actObj->callbackFunc )( actObj,  auxValue );
+                (actObj->callbackFunc)(actObj,  auxValue);
             }
         }
 
         // Caso contrario, la cola est� vac�a, lo que significa que debo eliminar la tarea.
-        else
-        {
+        else {
             // Cambiamos el estado de la variable de estado, para indicar que el objeto activo no existe m�s.
             actObj->itIsAlive = FALSE;
 
             // Borramos la cola del objeto activo.
-            vQueueDelete( actObj->ReceiveQueue );
+            vQueueDelete(actObj->ReceiveQueue);
 
             // Y finalmente tenemos que eliminar la tarea asociada (suicidio).
-            vTaskDelete( NULL );
-
+            vTaskDelete(NULL);
         }
     }
 }
@@ -154,18 +144,16 @@ void activeObjectTask( void* pvParameters )
  *
  *===========================================================================*/
 
-void activeObjectEnqueue( activeObject_t* ao, void* value )
-{
+void activeObjectEnqueue(activeObject_t *ao, void *value) {
     // Y lo enviamos a la cola.
-    xQueueSend( ao->ReceiveQueue, &value, 0 );
+    xQueueSend(ao->ReceiveQueue, &value, 0);
 }
 
 /*===========================================================================*/
 
-bool_t activeObjectOperationCreate( activeObject_t* ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue )
-{
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue) {
     /* cargo miembro que no estaba */
     ao->TransmitQueue = response_queue;
     /* creo oa padre */
-    return (activeObjectCreate( ao, callback, taskForAO ));
+    return (activeObjectCreate(ao, callback, taskForAO));
 }

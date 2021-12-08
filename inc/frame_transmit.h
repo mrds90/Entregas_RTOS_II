@@ -32,16 +32,18 @@ extern "C" {
 /**
  * @brief Inicia una transmision de datos con interrupciones
  *
- * @param frame_class_t* puntero a la estructura con los recursos para 
+ * @param frame_class_t* puntero a la estructura con los recursos para
  * imprimir. uart, pool y frame deben estar inicializados
  */
 void C2_FRAME_TRANSMIT_InitTransmision(frame_class_t *frame_obj);
+
 /**
  * @brief Se crea semaforo que se asigna al buffer handler de la instancia
- * 
- * @param buffer_handler 
+ *
+ * @param buffer_handler
  */
 void C2_FRAME_TRANSMIT_ObjInit(frame_buffer_handler_t *buffer_handler);
+
 /*=====[C++ - fin]===========================================================*/
 
 #ifdef __cplusplus

@@ -22,10 +22,10 @@ int main(void) {
         .uart = UART_USB,
     };
     C3_FRAME_PROCESSOR_Init(&usb_app); //Iniciar una instancia de frame_processor en UART_USB
-    
+
     // static app_t gpio_app = {
     //     .uart = UART_GPIO,
-    // };    
+    // };
     //C3_FRAME_PROCESSOR_Init(&gpio_app); //Iniciar una instancia de frame processor en UART_GPIO
 
     vTaskStartScheduler();

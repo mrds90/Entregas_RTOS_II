@@ -1,6 +1,6 @@
 /*=============================================================================
  * Copyright (c) 2021, Franco Bucafusco <franco_bucafusco@yahoo.com.ar>
- * 					   Martin N. Menendez <mmenendez@fi.uba.ar>
+ *                     Martin N. Menendez <mmenendez@fi.uba.ar>
  * All rights reserved.
  * License: Free
  * Date: 2021/05/03
@@ -18,7 +18,7 @@
 #include "semphr.h"
 #include "sapi.h"
 
-#define N_QUEUE_AO 		10
+#define N_QUEUE_AO      10
 
 /*=====[C++ - begin]=========================================================*/
 
@@ -49,7 +49,7 @@ extern "C" {
  *
  *===========================================================================*/
 
-typedef void ( *callBackActObj_t )( void* caller_ao, void* data );
+typedef void ( *callBackActObj_t )(void *caller_ao, void *data);
 
 /*===== Objeto activeObjectEvent_t ============================================
  *
@@ -66,11 +66,11 @@ typedef void ( *callBackActObj_t )( void* caller_ao, void* data );
  *===========================================================================*/
 typedef struct
 {
-    TaskFunction_t 		taskName;
-    QueueHandle_t 		ReceiveQueue;
-    QueueHandle_t 		TransmitQueue;  // Es una única cola para todos los AO creados que se desencolará en la tarea Tx
-    callBackActObj_t 	callbackFunc;
-    bool_t 				itIsAlive;
+    TaskFunction_t taskName;
+    QueueHandle_t ReceiveQueue;
+    QueueHandle_t TransmitQueue;        // Es una única cola para todos los AO creados que se desencolará en la tarea Tx
+    callBackActObj_t callbackFunc;
+    bool_t itIsAlive;
 } activeObject_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
@@ -91,7 +91,7 @@ typedef struct
  *
  *===========================================================================*/
 
-bool_t activeObjectCreate( activeObject_t* ao, callBackActObj_t callback, TaskFunction_t taskForAO );
+bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO);
 
 /*===== Tarea activeObjectTask()===============================================
  *
@@ -105,7 +105,7 @@ bool_t activeObjectCreate( activeObject_t* ao, callBackActObj_t callback, TaskFu
  *
  *===========================================================================*/
 
-void activeObjectTask( void* pvParameters );
+void activeObjectTask(void *pvParameters);
 
 
 /*===== Funci�n activeObjectEnqueue()==========================================
@@ -121,8 +121,9 @@ void activeObjectTask( void* pvParameters );
  *
  *===========================================================================*/
 
-void activeObjectEnqueue( activeObject_t* ao, void* value );
-bool_t activeObjectOperationCreate( activeObject_t* ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue );
+void activeObjectEnqueue(activeObject_t *ao, void *value);
+
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 

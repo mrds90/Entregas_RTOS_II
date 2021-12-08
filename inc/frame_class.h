@@ -37,8 +37,8 @@ extern "C" {
 #define WORD_MAX_QTY                15
 #define WORD_MIN_QTY                1
 #define UNDERSCORE_MAX_QTY      WORD_MAX_QTY // no se puede al final pero si al principio segun los requerimientos. por lo que puede haber un guion por palabra
-#if ( ( CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 200)
-    #define MAX_BUFFER_SIZE         ( CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
+#if ((CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC) > 200)
+    #define MAX_BUFFER_SIZE         (CHARACTER_SIZE_SOM + WORD_MAX_SIZE * WORD_MAX_QTY + CHARACTER_SIZE_ID + CHARACTER_SIZE_CMD + UNDERSCORE_MAX_QTY + CHARACTER_SIZE_CRC)
 #else
     #define MAX_BUFFER_SIZE         200
 #endif
@@ -52,7 +52,7 @@ typedef struct {
 } frame_t;
 
 /**
- * @brief Estructura para manejar la trama. Puntero para funciones de pool, cola y 
+ * @brief Estructura para manejar la trama. Puntero para funciones de pool, cola y
  * semaforo para espera en envío
  */
 typedef struct {

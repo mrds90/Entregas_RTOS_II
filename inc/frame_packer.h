@@ -24,7 +24,7 @@ extern "C" {
 
 /**
  * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
- * 
+ *
   */
 void C2_FRAME_PACKER_Init(frame_class_t *frame_obj);
 
