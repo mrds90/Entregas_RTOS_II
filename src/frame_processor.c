@@ -206,9 +206,9 @@ static void C3_FRAME_PROCESSOR_Task_Rx(void *task_parameter) {
     // DEBERIAMOS INICIALIZAR LA TAREA EN C3_FRAME_PROCESSOR_Init --> //C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
 
     FrameProcessorCallback CallBackAo[CASE_QTY] = {    // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
-        [CASE_SNAKE]  = C3_FRAME_PROCESSOR_ToPascal,
+        [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
         [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,
-        [CASE_PASCAL] = C3_FRAME_PROCESSOR_ToSnake,
+        [CASE_PASCAL]  = C3_FRAME_PROCESSOR_ToPascal,
     };
 
     activeObject_t frame_ao[CASE_QTY] = {
@@ -230,22 +230,24 @@ static void C3_FRAME_PROCESSOR_Task_Rx(void *task_parameter) {
 
         // Si el comando es uno válido se procesa el paquete
         if (command < CASE_QTY) {
+            vTaskSuspendAll();
             if( frame_ao[command].itIsAlive == FALSE ) {                        
                 if (!activeObjectOperationCreate( &frame_ao[command], CallBackAo[command], activeObjectTask , response_queue)) {   // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
                     snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
                     frame.data_size = ERROR_MSG_SIZE;
-                    xQueueSend(frame_object->buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
+                    xQueueSend(response_queue, &frame, 0);     // Se envía el paquete para trasmitir por UART
                 }
                  
             }          
             if( frame_ao[command].itIsAlive == TRUE ) { // Se consulta si está activo el AO por si no se pudo crear en la condición anterior
                 activeObjectEnqueue( &frame_ao[command], &frame );    // Y enviamos el dato a la cola para procesar.
-            }                          
+            } 
+            xTaskResumeAll();                         
         }
         else {  // En caso de que el comando no sea válido se genera el mensaje de error
             snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
             frame.data_size = ERROR_MSG_SIZE;
-            xQueueSend(frame_object->buffer_handler.queue_transmit, &frame, 0);     // Se envía el paquete para trasmitir por UART
+            xQueueSend(response_queue, &frame, 0);     // Se envía el paquete para trasmitir por UART
         }        
     }
 }
@@ -255,21 +257,21 @@ static void C3_FRAME_PROCESSOR_ToCamel(void* caller_ao, void *data) {
     frame_t *frame = (frame_t *) data; 
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_CAMEL);
-    xQueueSend ( me_ao->activeObjectQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend ( me_ao->TransmitQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_ToPascal(void* caller_ao, void *data) {
     frame_t *frame = (frame_t *) data; 
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_PASCAL);
-    xQueueSend ( me_ao->activeObjectQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend ( me_ao->TransmitQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_ToSnake(void* caller_ao, void *data) {
     frame_t *frame = (frame_t *) data; 
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_SNAKE);
-    xQueueSend ( me_ao->activeObjectQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend ( me_ao->TransmitQueue , frame , 0);    // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_Transform(frame_t *frame, case_t cmd_case) {

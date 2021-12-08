@@ -48,13 +48,13 @@ bool_t activeObjectCreate( activeObject_t* ao, callBackActObj_t callback, TaskFu
     BaseType_t retValue = pdFALSE;
 
     // Creamos la cola asociada a este objeto activo.
-    ao->activeObjectQueue = xQueueCreate( N_QUEUE_AO, sizeof( void* ) );
+    ao->ReceiveQueue = xQueueCreate( N_QUEUE_AO, sizeof( void* ) );
 
     // Asignamos la tarea al objeto activo.
     ao->taskName = taskForAO;
 
     // Si la cola se cre� sin inconvenientes.
-    if( ao->activeObjectQueue != NULL )
+    if( ao->ReceiveQueue != NULL )
     {
         // Asignamos el callback al objeto activo.
         ao->callbackFunc = callback;
@@ -108,10 +108,10 @@ void activeObjectTask( void* pvParameters )
     while( TRUE )
     {
         // Verifico si hay elementos para procesar en la cola. Si los hay, los proceso.
-        if( uxQueueMessagesWaiting( actObj->activeObjectQueue ) )
+        if( uxQueueMessagesWaiting( actObj->ReceiveQueue ) )
         {
             // Hago una lectura de la cola.
-            retQueueVal = xQueueReceive( actObj->activeObjectQueue, (char*) &auxValue, portMAX_DELAY );
+            retQueueVal = xQueueReceive( actObj->ReceiveQueue, &auxValue, portMAX_DELAY );
 
             // Si la lectura fue exitosa, proceso el dato.
             if( retQueueVal )
@@ -130,7 +130,7 @@ void activeObjectTask( void* pvParameters )
             actObj->itIsAlive = FALSE;
 
             // Borramos la cola del objeto activo.
-            vQueueDelete( actObj->activeObjectQueue );
+            vQueueDelete( actObj->ReceiveQueue );
 
             // Y finalmente tenemos que eliminar la tarea asociada (suicidio).
             vTaskDelete( NULL );
@@ -157,7 +157,7 @@ void activeObjectTask( void* pvParameters )
 void activeObjectEnqueue( activeObject_t* ao, void* value )
 {
     // Y lo enviamos a la cola.
-    xQueueSend( ao->activeObjectQueue, value, 0 );
+    xQueueSend( ao->ReceiveQueue, &value, 0 );
 }
 
 /*===========================================================================*/
@@ -165,7 +165,7 @@ void activeObjectEnqueue( activeObject_t* ao, void* value )
 bool_t activeObjectOperationCreate( activeObject_t* ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue )
 {
     /* cargo miembro que no estaba */
-    ao->activeObjectQueue = response_queue;
+    ao->TransmitQueue = response_queue;
     /* creo oa padre */
     return (activeObjectCreate( ao, callback, taskForAO ));
 }
