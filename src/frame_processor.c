@@ -231,7 +231,7 @@ static void C3_FRAME_PROCESSOR_Task_Rx(void *task_parameter) {
         if (command < CASE_QTY) {
             vTaskSuspendAll();
             if (frame_ao[command].itIsAlive == FALSE) {
-                if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], activeObjectTask, response_queue)) {     // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], response_queue)) {     // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
                     snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
                     frame.data_size = ERROR_MSG_SIZE;
                     xQueueSend(response_queue, &frame, 0);     // Se envía el paquete para trasmitir por UART

@@ -26,6 +26,19 @@
 
 /*=====[Prototypes (declarations) of private functions]======================*/
 
+/*===== Tarea activeObjectTask()===============================================
+ *
+ * (+) Descripci�n: Esta es la tarea asociada al objeto activo. Leer� datos de
+ * la cola del objeto y cuando los procese, se ejecutar� el callback asociado.
+ *
+ * (+) Recibe: Un puntero del tipo "void" por donde se enviar� el puntero al
+ * objeto activo.
+ *
+ * (+) Devuelve: Nada.
+ *
+ *===========================================================================*/
+static void activeObjectTask(void *pvParameters);
+
 /*=====[Implementations of public functions]=================================*/
 
 /*===== Funci�n activeObjectCreate()===========================================
@@ -42,7 +55,7 @@
  *
  *===========================================================================*/
 
-bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO) {
+bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback) {
     // Una variable local para saber si hemos creado correctamente los objetos.
     BaseType_t retValue = pdFALSE;
 
@@ -50,7 +63,7 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, TaskFun
     ao->ReceiveQueue = xQueueCreate(N_QUEUE_AO, sizeof(void *));
 
     // Asignamos la tarea al objeto activo.
-    ao->taskName = taskForAO;
+    ao->taskName = activeObjectTask;
 
     // Si la cola se cre� sin inconvenientes.
     if (ao->ReceiveQueue != NULL) {
@@ -151,9 +164,9 @@ void activeObjectEnqueue(activeObject_t *ao, void *value) {
 
 /*===========================================================================*/
 
-bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue) {
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue) {
     /* cargo miembro que no estaba */
     ao->TransmitQueue = response_queue;
     /* creo oa padre */
-    return (activeObjectCreate(ao, callback, taskForAO));
+    return (activeObjectCreate(ao, callback));
 }

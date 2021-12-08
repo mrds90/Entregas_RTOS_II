@@ -91,21 +91,7 @@ typedef struct
  *
  *===========================================================================*/
 
-bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO);
-
-/*===== Tarea activeObjectTask()===============================================
- *
- * (+) Descripci�n: Esta es la tarea asociada al objeto activo. Leer� datos de
- * la cola del objeto y cuando los procese, se ejecutar� el callback asociado.
- *
- * (+) Recibe: Un puntero del tipo "void" por donde se enviar� el puntero al
- * objeto activo.
- *
- * (+) Devuelve: Nada.
- *
- *===========================================================================*/
-
-void activeObjectTask(void *pvParameters);
+bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
 
 
 /*===== Funci�n activeObjectEnqueue()==========================================
@@ -123,7 +109,7 @@ void activeObjectTask(void *pvParameters);
 
 void activeObjectEnqueue(activeObject_t *ao, void *value);
 
-bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, TaskFunction_t taskForAO, QueueHandle_t response_queue);
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue);
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 
