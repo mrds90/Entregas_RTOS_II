@@ -295,7 +295,7 @@ static void C3_FRAME_PROCESSOR_Transform(frame_t *frame, case_t cmd_case) {
         index_in += character_count;
         index_out += character_count;
 
-        if (++qty_words > WORD_MAX_QTY) {           // Si se pasa la cantidad máxima de palabras se sale
+        if ((++qty_words > WORD_MAX_QTY) || (character_count == INVALID_FRAME)) {           // Si se pasa la cantidad máxima de palabras se sale
             error_flag = ERROR_INVALID_DATA;
             break;
         }
