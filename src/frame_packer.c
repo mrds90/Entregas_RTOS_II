@@ -32,7 +32,6 @@
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-// SACAR TAREA DE IMPRESION EN C2 Y HACERLA FUNCION. HABRA UNA TAREA EN C3 QUE SE ENCARGUE DE ENCOLAR LOS MENSAJES A TRANSMITIR
 void C2_FRAME_PACKER_Init(frame_class_t *frame_obj) {
     frame_obj->buffer_handler.queue_receive = C2_FRAME_CAPTURE_ObjInit(frame_obj->buffer_handler.pool, frame_obj->uart)->queue_receive;
     C2_FRAME_TRANSMIT_ObjInit(&frame_obj->buffer_handler); // Se envía para asignación de semáforo de buffer_handler de transmisión

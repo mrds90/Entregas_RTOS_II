@@ -136,6 +136,9 @@ bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app) {
 
     if (my_app->uart < UART_MAXNUM && my_app->uart >= 0) {
         frame_class_t *frame_object = (frame_class_t *)pvPortMalloc(sizeof(frame_class_t));
+        if(frame_object == NULL) {
+            return FALSE;
+        }
         char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
         if (memory_pool == NULL) {
             return FALSE;
