@@ -28,8 +28,8 @@
 #define CRC_MSG_FORMAT                   "%s%0.2X"
 /*=====[Definición de tipos de datos privados]================================*/
 typedef struct {
-    activeObject_t *active_object;
-    frame_class_t *frame_class;
+    activeObject_t *activeObject;
+    uartMap_t uart;
 } frame_packer_t;
 /*=====[Definición de variables privadas]====================================*/
 /**
@@ -44,11 +44,10 @@ static void C2_FRAME_PACKER_ReceiveTask(void *task_parameter);
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_PACKER_Init(frame_class_t *frame_obj, activeObject_t *ao_obj) {
-    C2_FRAME_TRANSMIT_ObjInit(&frame_obj->buffer_handler); // Se envía para asignación de semáforo de buffer_handler de transmisión
-    frame_packer_t *frame_packer = (frame_packer_t *) pvPortMalloc(sizeof(frame_packer_t));
-    frame_packer->active_object = ao_obj;
-    frame_packer->frame_class = frame_obj;
+void C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart, cosa_completa) {
+    frame_packer_t *frame_packer = pvPortMalloc(sizeof(frame_packer_t));
+    frame_packer->activeObject = ao_obj;
+    frame_packer->uart = uart;
     BaseType_t res = xTaskCreate(
         C2_FRAME_PACKER_ReceiveTask,
         (const char *)"C2_FRAME_PACKER_ReceiveTask",
@@ -60,38 +59,80 @@ void C2_FRAME_PACKER_Init(frame_class_t *frame_obj, activeObject_t *ao_obj) {
 }
 
 void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
-    frame_packer_t *frame_packer = (frame_packer_t *)task_parameter;
-    frame_class_t *frame_obj = frame_packer->frame_class;
-    activeObject_t *ao_obj = frame_packer->active_object;
-    vPortFree(frame_packer);
+    frame_packer_t *frame_packer = (frame_packer_t *) task_parameter;
+    activeObject_t *ao_obj = frame_packer->activeObject;
+
+
+    QMPool pool;
     event_t event = EVENT_RECEIVE;
-    QueueHandle_t queue_receive = C2_FRAME_CAPTURE_ObjInit(frame_obj->buffer_handler.pool, frame_obj->uart)->queue_receive;
+    frame_buffer_handler_t buffer_handler;
+    buffer_handler.pool = &pool;
+
+    buffer_handler.uart = frame_packer->uart;
+
+    vPortFree(frame_packer);
+
+    char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
+    if (memory_pool == NULL) {
+        return FALSE;
+    }
+    QMPool_init(buffer_handler.pool, (char *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
+
+    C2_FRAME_TRANSMIT_ObjInit(buffer_handler);     // Se envía para asignación de semáforo de buffer_handler de transmisión
+
+    QueueHandle_t queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler.pool,  buffer_handler.uart)->queue_receive;
+    buffer_handler.queue_transmit = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
+    
+    configASSERT(buffer_handler.queue_transmit != NULL);
+
+    BaseType_t res = xTaskCreate(
+        C2_FRAME_PACKER_PrintTask,
+        (const char *)"C2_FRAME_PACKER_PrintTask",
+        configMINIMAL_STACK_SIZE * 3,
+        (void *) &buffer_handler,
+        tskIDLE_PRIORITY + 1,
+        NULL
+        );
+
+    configASSERT(res == pdPASS);
+
+    frame_t frame;
     while (TRUE) {
-        frame_t frame;
         xQueueReceive(queue_receive, &frame, portMAX_DELAY);
         frame.data = &frame.data[CHARACTER_INDEX_CMD];                         //Se posiciona en el comienzo de los datos y se enmascara el ID
         frame.data_size = frame.data_size - CHARACTER_SIZE_ID;                 //Se descuenta el ID en el tamaño de los datos
         frame.data[frame.data_size] = CHARACTER_END_OF_PACKAGE;                //Se agrega el '\0' al final de los datos sacando el CRC
-        data_t data = {
-            .frame = frame.data,
-            .event = event,
-        };                               //Se crea una estructura data_t con los datos y el tamaño
-        activeObjectEnqueue(ao_obj, &data);                      //Recibe luego de un EOM en frame_capture
+        frame.event = EVENT_RECEIVE;
+        frame.send_queue = buffer_handler.queue_transmit;
+        activeObjectEnqueue(ao_obj, &frame);                      //Recibe luego de un EOM en frame_capture
     }
 }
 
-void C2_FRAME_PACKER_Print(frame_class_t *frame_obj) {
-    uint8_t crc = crc8_calc(0, frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame_obj->frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
-    snprintf(frame_obj->frame.data + START_OF_MESSAGE_SIZE - CHARACTER_SIZE_ID * sizeof(char),  // puntero a posición de cadena de destino
-             PRINT_FRAME_SIZE(frame_obj->frame.data_size),                                        // tamaño de los datos a escribir
-             CRC_MSG_FORMAT,                                                                           // formato de dato [[frame_obj->frame + crc de 2 elementos]]
-             frame_obj->frame.data - CHARACTER_SIZE_ID * sizeof(char),                            // datos sin crc
-             crc);                                                                                // nuevo crc
+void C2_FRAME_PACKER_PrintTask(void *task_parameter) {
+    frame_buffer_handler_t *buffer_handler = (frame_buffer_handler_t *) task_parameter;
+    frame_t frame;
 
-    frame_obj->frame.data -= CHARACTER_SIZE_ID * sizeof(char);                                          // Se resta el ID al puntero de datos para apuntar al comienzo del paquete
-    frame_obj->frame.data[0] = START_OF_MESSAGE;                                                        // Se agraga el SOM
-    frame_obj->frame.data_size = PRINT_FRAME_SIZE(frame_obj->frame.data_size) + START_OF_MESSAGE_SIZE;  // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
-    C2_FRAME_TRANSMIT_InitTransmision(frame_obj);                               // Se inicializa la transmisión del paquete procesado por la ISR
+    while (TRUE) {
+        xQueueReceive(buffer_handler->queue_transmit, &frame, portMAX_DELAY);
+
+        uint8_t crc = crc8_calc(0, frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
+        snprintf(frame.data + START_OF_MESSAGE_SIZE - CHARACTER_SIZE_ID * sizeof(char), // puntero a posición de cadena de destino
+                 PRINT_FRAME_SIZE(frame.data_size),                                    // tamaño de los datos a escribir
+                 CRC_MSG_FORMAT,                                                                       // formato de dato [[frame + crc de 2 elementos]]
+                 frame.data - CHARACTER_SIZE_ID * sizeof(char),                        // datos sin crc
+                 crc);                                                                            // nuevo crc
+
+        frame.data -= CHARACTER_SIZE_ID * sizeof(char);                                      // Se resta el ID al puntero de datos para apuntar al comienzo del paquete
+        frame.data[0] = START_OF_MESSAGE;                                                    // Se agraga el SOM
+        frame.data_size = PRINT_FRAME_SIZE(frame.data_size) + START_OF_MESSAGE_SIZE; // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
+
+        frame_class_t frame_obj = {
+            .frame = frame,
+            .buffer_handler = *buffer_handler
+        };
+
+        C2_FRAME_TRANSMIT_InitTransmision(frame_obj);                           // Se inicializa la transmisión del paquete procesado por la ISR
+    }
 }
 
 /*=====[Implementación de funciones privadas]================================*/

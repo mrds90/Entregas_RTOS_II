@@ -21,10 +21,6 @@ extern "C" {
 #endif
 
 
-typedef struct {
-  event_t event;
-  frame_t frame;
-} data_t;
 
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
@@ -32,7 +28,7 @@ typedef struct {
  * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
  *
   */
-void C2_FRAME_PACKER_Init(frame_class_t *frame_obj, activeObject_t *ao_obj);
+C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart);
 
 /**
  * @brief Función que recibe y procesa los datos recibidos desde C3, le inserta el ID y CRC para ser impresos/enviados por la función de callback de

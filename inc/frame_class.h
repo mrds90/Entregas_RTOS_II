@@ -43,13 +43,7 @@ extern "C" {
     #define MAX_BUFFER_SIZE         200
 #endif
 /*=====[Definiciones de macros de constantes publicas]=======================*/
-/**
- * @brief Contiene atributos de la instancia de la trama. Puntero de indice y tamaño
- */
-typedef struct {
-    uint8_t data_size;
-    char *data;
-} frame_t;
+
 
 typedef enum {
     EVENT_RECEIVE,
@@ -57,6 +51,16 @@ typedef enum {
 
     EVENT_QTY,
 } event_t;
+
+/**
+ * @brief Contiene atributos de la instancia de la trama. Puntero de indice y tamaño
+ */
+typedef struct {
+    uint8_t data_size;
+    char *data;
+    event_t event;
+    QueueHandle_t send_queue;
+} frame_t;
 /**
  * @brief Estructura para manejar la trama. Puntero para funciones de pool, cola y
  * semaforo para espera en envío
@@ -77,7 +81,6 @@ typedef struct {
 typedef struct {
     frame_buffer_handler_t buffer_handler;
     frame_t frame;
-    uartMap_t uart;
 } frame_class_t;
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
