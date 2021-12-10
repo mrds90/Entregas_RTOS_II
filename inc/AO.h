@@ -71,28 +71,10 @@ typedef struct
     QueueHandle_t TransmitQueue;        // Es una única cola para todos los AO creados que se desencolará en la tarea Tx
     callBackActObj_t callbackFunc;
     bool_t itIsAlive;
+    bool_t isDestructible;
 } activeObject_t;
 
 /*=====[Prototypes (declarations) of public functions]=======================*/
-
-/*===== Funci�n activeObjectCreate()===========================================
- *
- * (+) Descripci�n: Esta funci�n se encarga de crear el objeto activo; es decir,
- * crear su cola de procesamiento y su tarea asociada. Adicionalmente, se le
- * asignar� una funci�n de callback que es la que se ejecutar� en la tarea.
- *
- * (+) Recibe: Un puntero del tipo "activeObject_t" al objeto activo y el
- * evento del tipo "activeObjectEvent_t". Adicionalmente, se le debe pasar el
- * nombre de la tarea asociada al objeto activo que se va a crear, del tipo
- * "TaskFunction_t".
- *
- * (+) Devuelve: True o False dependiendo de si el objeto activo se cre�
- * correctamente o no.
- *
- *===========================================================================*/
-
-bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
-
 
 /*===== Funci�n activeObjectEnqueue()==========================================
  *
@@ -109,7 +91,8 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
 
 void activeObjectEnqueue(activeObject_t *ao, void *value);
 
-bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue);
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue, bool_t is_destroyable);
+
 
 /*=====[Prototypes (declarations) of public interrupt functions]=============*/
 

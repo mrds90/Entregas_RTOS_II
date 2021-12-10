@@ -10,8 +10,10 @@
 #include "task.h"
 
 #include "frame_packer.h"
+#include "AO.h"
 #include "frame_capture.h"
 #include "frame_transmit.h"
+
 
 #include "string.h"
 #include "crc8.h"
@@ -25,23 +27,57 @@
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 #define CRC_MSG_FORMAT                   "%s%0.2X"
 /*=====[Definición de tipos de datos privados]================================*/
-
+typedef struct {
+    activeObject_t *active_object;
+    frame_class_t *frame_class;
+} frame_packer_t;
 /*=====[Definición de variables privadas]====================================*/
+/**
+ * @brief Recibe los datos de FRAME_CAPTURE y los empaqueta (enmascara el ID y saca el CRC) y los envia a la capa superior.
+ *
+ * @param frame          Puntero al objeto que cargara el frame recibido.
+ * @param buffer_handler Buffer que contiene el contexto (cola y puntero a pool)
+ */
+static void C2_FRAME_PACKER_ReceiveTask(void *task_parameter);
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_PACKER_Init(frame_class_t *frame_obj) {
-    frame_obj->buffer_handler.queue_receive = C2_FRAME_CAPTURE_ObjInit(frame_obj->buffer_handler.pool, frame_obj->uart)->queue_receive;
+void C2_FRAME_PACKER_Init(frame_class_t *frame_obj, activeObject_t *ao_obj) {
     C2_FRAME_TRANSMIT_ObjInit(&frame_obj->buffer_handler); // Se envía para asignación de semáforo de buffer_handler de transmisión
+    frame_packer_t *frame_packer = (frame_packer_t *) pvPortMalloc(sizeof(frame_packer_t));
+    frame_packer->active_object = ao_obj;
+    frame_packer->frame_class = frame_obj;
+    BaseType_t res = xTaskCreate(
+        C2_FRAME_PACKER_ReceiveTask,
+        (const char *)"C2_FRAME_PACKER_ReceiveTask",
+        configMINIMAL_STACK_SIZE * 3,
+        (void *) frame_packer,
+        tskIDLE_PRIORITY + 1,
+        NULL
+        );
 }
 
-void C2_FRAME_PACKER_Receive(frame_t *frame, QueueHandle_t queue_receive) {
-    xQueueReceive(queue_receive, frame, portMAX_DELAY);                  //Recibe luego de un EOM en frame_capture
-    frame->data = &frame->data[CHARACTER_INDEX_CMD];                             //Se posiciona en el comienzo de los datos y se enmascara el ID
-    frame->data_size = frame->data_size - CHARACTER_SIZE_ID;                     //Se descuenta el ID en el tamaño de los datos
-    frame->data[frame->data_size] = CHARACTER_END_OF_PACKAGE;                    //Se agrega el '\0' al final de los datos sacando el CRC
+void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
+    frame_packer_t *frame_packer = (frame_packer_t *)task_parameter;
+    frame_class_t *frame_obj = frame_packer->frame_class;
+    activeObject_t *ao_obj = frame_packer->active_object;
+    vPortFree(frame_packer);
+    event_t event = EVENT_RECEIVE;
+    QueueHandle_t queue_receive = C2_FRAME_CAPTURE_ObjInit(frame_obj->buffer_handler.pool, frame_obj->uart)->queue_receive;
+    while (TRUE) {
+        frame_t frame;
+        xQueueReceive(queue_receive, &frame, portMAX_DELAY);
+        frame.data = &frame.data[CHARACTER_INDEX_CMD];                         //Se posiciona en el comienzo de los datos y se enmascara el ID
+        frame.data_size = frame.data_size - CHARACTER_SIZE_ID;                 //Se descuenta el ID en el tamaño de los datos
+        frame.data[frame.data_size] = CHARACTER_END_OF_PACKAGE;                //Se agrega el '\0' al final de los datos sacando el CRC
+        data_t data = {
+            .frame = frame.data,
+            .event = event,
+        };                               //Se crea una estructura data_t con los datos y el tamaño
+        activeObjectEnqueue(ao_obj, &data);                      //Recibe luego de un EOM en frame_capture
+    }
 }
 
 void C2_FRAME_PACKER_Print(frame_class_t *frame_obj) {

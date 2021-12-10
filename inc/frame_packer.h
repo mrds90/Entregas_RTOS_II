@@ -20,21 +20,19 @@
 extern "C" {
 #endif
 
+
+typedef struct {
+  event_t event;
+  frame_t frame;
+} data_t;
+
 /*=====[Declaración de prototipos de funciones públicas]=====================*/
 
 /**
  * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
  *
   */
-void C2_FRAME_PACKER_Init(frame_class_t *frame_obj);
-
-/**
- * @brief Recibe los datos de FRAME_CAPTURE y los empaqueta (enmascara el ID y saca el CRC) y los envia a la capa superior.
- *
- * @param frame          Puntero al objeto que cargara el frame recibido.
- * @param buffer_handler Buffer que contiene el contexto (cola y puntero a pool)
- */
-void C2_FRAME_PACKER_Receive(frame_t *frame, QueueHandle_t queue_receive);
+void C2_FRAME_PACKER_Init(frame_class_t *frame_obj, activeObject_t *ao_obj);
 
 /**
  * @brief Función que recibe y procesa los datos recibidos desde C3, le inserta el ID y CRC para ser impresos/enviados por la función de callback de

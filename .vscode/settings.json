@@ -5,6 +5,7 @@
         "frame_packer.h": "c",
         "frame_transmit.h": "c",
         "string.h": "c",
-        "frame_processor.h": "c"
+        "frame_processor.h": "c",
+        "ao.h": "c"
     }
 }

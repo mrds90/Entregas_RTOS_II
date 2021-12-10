@@ -39,6 +39,25 @@
  *===========================================================================*/
 static void activeObjectTask(void *pvParameters);
 
+
+/*===== Funci�n activeObjectCreate()===========================================
+ *
+ * (+) Descripci�n: Esta funci�n se encarga de crear el objeto activo; es decir,
+ * crear su cola de procesamiento y su tarea asociada. Adicionalmente, se le
+ * asignar� una funci�n de callback que es la que se ejecutar� en la tarea.
+ *
+ * (+) Recibe: Un puntero del tipo "activeObject_t" al objeto activo y el
+ * evento del tipo "activeObjectEvent_t". Adicionalmente, se le debe pasar el
+ * nombre de la tarea asociada al objeto activo que se va a crear, del tipo
+ * "TaskFunction_t".
+ *
+ * (+) Devuelve: True o False dependiendo de si el objeto activo se cre�
+ * correctamente o no.
+ *
+ *===========================================================================*/
+
+static bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
+
 /*=====[Implementations of public functions]=================================*/
 
 /*===== Funci�n activeObjectCreate()===========================================
@@ -129,7 +148,7 @@ void activeObjectTask(void *pvParameters) {
         }
 
         // Caso contrario, la cola est� vac�a, lo que significa que debo eliminar la tarea.
-        else {
+        else if (actObj->isDestructible){
             // Cambiamos el estado de la variable de estado, para indicar que el objeto activo no existe m�s.
             actObj->itIsAlive = FALSE;
 
@@ -164,9 +183,10 @@ void activeObjectEnqueue(activeObject_t *ao, void *value) {
 
 /*===========================================================================*/
 
-bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue) {
+bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue, bool_t is_destroyable) {
     /* cargo miembro que no estaba */
     ao->TransmitQueue = response_queue;
+    ao->isDestructible = is_destroyable;
     /* creo oa padre */
-    return (activeObjectCreate(ao, callback));
+    return (activeObjectCreate(ao, callback);
 }

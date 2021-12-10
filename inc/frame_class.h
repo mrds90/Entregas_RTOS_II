@@ -51,6 +51,12 @@ typedef struct {
     char *data;
 } frame_t;
 
+typedef enum {
+    EVENT_RECEIVE,
+    EVENT_TRANSMIT,
+
+    EVENT_QTY,
+} event_t;
 /**
  * @brief Estructura para manejar la trama. Puntero para funciones de pool, cola y
  * semaforo para espera en envío

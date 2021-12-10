@@ -71,9 +71,7 @@ static const char *const task_name_map[CASE_QTY] = {
 
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
-static void C3_FRAME_PROCESSOR_Task_Rx(void *taskParmPtr);
-
-static void C3_FRAME_PROCESSOR_Task_Tx(void *task_parameter);
+static void C3_FRAME_PROCESSOR_Callback(void *taskParmPtr);
 
 /**
  * @brief función para procesar el frame según el comando que recibe.
@@ -156,232 +154,204 @@ bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app) {
             return FALSE;
         }
         QMPool_init(frame_object->buffer_handler.pool, (char *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
+        activeObject_t *app_object = (activeObject_t *) pvPortMalloc(sizeof(activeObject_t));
+        if (app_object == NULL) {
+            return FALSE;
+        }
+
+        activeObjectOperationCreate(app_object, C3_FRAME_PROCESSOR_Callback, task_name_map[my_app->case_type], my_app->priority, my_app->stack_size, my_app->task_parameter);
 
         C2_FRAME_PACKER_Init(frame_object); // Se inicializa el objeto de la instancia
 
-        if (!uart_used[my_app->uart]) {
-            uart_used[my_app->uart] = TRUE;
-            BaseType_t xReturned = xTaskCreate(
-                C3_FRAME_PROCESSOR_Task_Rx,
-                (const char *)"Main Processor Rx",
-                configMINIMAL_STACK_SIZE * 3,
-                (void *) frame_object,
-                tskIDLE_PRIORITY + 1,
-                NULL
-                );
-            if (xReturned == pdPASS) {
-                ret = TRUE;
-            }
-        }
-
-        BaseType_t xReturned = xTaskCreate(
-            C3_FRAME_PROCESSOR_Task_Tx,
-            (const char *)"Main Processor Tx",
-            configMINIMAL_STACK_SIZE * 3,
-            (void *) frame_object,
-            tskIDLE_PRIORITY + 1,
-            NULL
-            );
-        if (xReturned == pdPASS) {
-            ret = TRUE & ret;   // Si no se pudo crear alguna de las tareas se devuelve FALSE
-        }
+        return ret;
     }
 
-    return ret;
-}
-
 /*=====[Implementación de Tareas]================================*/
-static void C3_FRAME_PROCESSOR_Task_Tx(void *task_parameter) {
-    frame_class_t *frame_object = (frame_class_t *) task_parameter;
 
-    while (TRUE) {
-        if (xQueueReceive(frame_object->buffer_handler.queue_transmit, &frame_object->frame, portMAX_DELAY) == pdTRUE) {
+    static void C3_FRAME_PROCESSOR_Callback(void *task_parameter) {
+        frame_class_t *frame_object = (frame_class_t *) task_parameter;
+        QueueHandle_t response_queue = frame_object->buffer_handler.queue_transmit;
+
+
+        FrameProcessorCallback CallBackAo[CASE_QTY] = {        // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
+            [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
+            [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,
+            [CASE_PASCAL]  = C3_FRAME_PROCESSOR_ToPascal,
+        };
+
+        activeObject_t frame_ao[CASE_QTY] = {
+            [CASE_SNAKE]    = {.itIsAlive = FALSE},
+            [CASE_CAMEL]    = {.itIsAlive = FALSE},
+            [CASE_PASCAL]   = {.itIsAlive = FALSE},
+        };
+        frame_t frame;  // Se utilizará para guardar el paquete proveniente de C2
+        if (event == RECEIVE_EVENT) {
+            C2_FRAME_PACKER_Receive(&frame, frame_object->buffer_handler.queue_receive); // Se espera el paquete de la capa C2
+
+            case_t command = CASE_PASCAL;
+
+            // Se obtiene el evento
+            while (command_map[command] != *frame.data && command < CASE_QTY) { // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
+                command++;
+            }
+
+            // Si el comando es uno válido se procesa el paquete
+            if (command < CASE_QTY) {
+                vTaskSuspendAll();
+                if (frame_ao[command].itIsAlive == FALSE) {
+                    if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], response_queue)) { // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                        snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
+                        frame.data_size = ERROR_MSG_SIZE;
+                        xQueueSend(response_queue, &frame, 0); // Se envía el paquete para trasmitir por UART
+                    }
+                }
+                if (frame_ao[command].itIsAlive == TRUE) { // Se consulta si está activo el AO por si no se pudo crear en la condición anterior
+                    activeObjectEnqueue(&frame_ao[command], &frame);  // Y enviamos el dato a la cola para procesar.
+                }
+                xTaskResumeAll();
+            }
+            else { // En caso de que el comando no sea válido se genera el mensaje de error
+                snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
+                frame.data_size = ERROR_MSG_SIZE;
+                xQueueSend(response_queue, &frame, 0); // Se envía el paquete para trasmitir por UART
+            }
+        }
+        else if (event == TRANSMIT_EVENT) {
             C2_FRAME_PACKER_Print(frame_object);
         }
     }
-}
-
-static void C3_FRAME_PROCESSOR_Task_Rx(void *task_parameter) {
-    frame_class_t *frame_object = (frame_class_t *) task_parameter;
-    QueueHandle_t response_queue = frame_object->buffer_handler.queue_transmit;
-
-    FrameProcessorCallback CallBackAo[CASE_QTY] = {    // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
-        [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
-        [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,
-        [CASE_PASCAL]  = C3_FRAME_PROCESSOR_ToPascal,
-    };
-
-    activeObject_t frame_ao[CASE_QTY] = {
-        [CASE_SNAKE]    = {.itIsAlive = FALSE},
-        [CASE_CAMEL]    = {.itIsAlive = FALSE},
-        [CASE_PASCAL]   = {.itIsAlive = FALSE},
-    };
-
-    while (TRUE) {
-        frame_t frame;  // Se utilizará para guardar el paquete proveniente de C2
-        C2_FRAME_PACKER_Receive(&frame, frame_object->buffer_handler.queue_receive);    // Se espera el paquete de la capa C2
-
-        case_t command = CASE_PASCAL;
-
-        // Se obtiene el evento
-        while (command_map[command] != *frame.data && command < CASE_QTY) {  // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
-            command++;
-        }
-
-        // Si el comando es uno válido se procesa el paquete
-        if (command < CASE_QTY) {
-            vTaskSuspendAll();
-            if (frame_ao[command].itIsAlive == FALSE) {
-                if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], response_queue)) {     // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
-                    snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
-                    frame.data_size = ERROR_MSG_SIZE;
-                    xQueueSend(response_queue, &frame, 0);     // Se envía el paquete para trasmitir por UART
-                }
-            }
-            if (frame_ao[command].itIsAlive == TRUE) {  // Se consulta si está activo el AO por si no se pudo crear en la condición anterior
-                activeObjectEnqueue(&frame_ao[command], &frame);      // Y enviamos el dato a la cola para procesar.
-            }
-            xTaskResumeAll();
-        }
-        else {  // En caso de que el comando no sea válido se genera el mensaje de error
-            snprintf(frame.data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_INVALID_OPCODE - 1);
-            frame.data_size = ERROR_MSG_SIZE;
-            xQueueSend(response_queue, &frame, 0);     // Se envía el paquete para trasmitir por UART
-        }
-    }
-}
 
 /*=====[Implementación de funciones privadas]================================*/
-static void C3_FRAME_PROCESSOR_ToCamel(void *caller_ao, void *data) {
-    frame_t *frame = (frame_t *) data;
-    activeObject_t *me_ao = (activeObject_t *) caller_ao;
-    C3_FRAME_PROCESSOR_Transform(frame, CASE_CAMEL);
-    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
-}
+    static void C3_FRAME_PROCESSOR_ToCamel(void *caller_ao, void *data) {
+        frame_t *frame = (frame_t *) data;
+        activeObject_t *me_ao = (activeObject_t *) caller_ao;
+        C3_FRAME_PROCESSOR_Transform(frame, CASE_CAMEL);
+        xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    }
 
-static void C3_FRAME_PROCESSOR_ToPascal(void *caller_ao, void *data) {
-    frame_t *frame = (frame_t *) data;
-    activeObject_t *me_ao = (activeObject_t *) caller_ao;
-    C3_FRAME_PROCESSOR_Transform(frame, CASE_PASCAL);
-    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
-}
+    static void C3_FRAME_PROCESSOR_ToPascal(void *caller_ao, void *data) {
+        frame_t *frame = (frame_t *) data;
+        activeObject_t *me_ao = (activeObject_t *) caller_ao;
+        C3_FRAME_PROCESSOR_Transform(frame, CASE_PASCAL);
+        xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    }
 
-static void C3_FRAME_PROCESSOR_ToSnake(void *caller_ao, void *data) {
-    frame_t *frame = (frame_t *) data;
-    activeObject_t *me_ao = (activeObject_t *) caller_ao;
-    C3_FRAME_PROCESSOR_Transform(frame, CASE_SNAKE);
-    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
-}
+    static void C3_FRAME_PROCESSOR_ToSnake(void *caller_ao, void *data) {
+        frame_t *frame = (frame_t *) data;
+        activeObject_t *me_ao = (activeObject_t *) caller_ao;
+        C3_FRAME_PROCESSOR_Transform(frame, CASE_SNAKE);
+        xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);    // El AO envía el evento sin importar si el receptor lo puede recibir
+    }
 
-static void C3_FRAME_PROCESSOR_Transform(frame_t *frame, case_t cmd_case) {
-    WordProcessorCallback CallbackFunc[CASE_QTY] = {    // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
-        [CASE_SNAKE]  = C3_FRAME_PROCESSOR_WordLowerInitial,
-        [CASE_CAMEL]  = C3_FRAME_PROCESSOR_WordUpperInitial,
-        [CASE_PASCAL] = C3_FRAME_PROCESSOR_WordUpperInitial,
-    };
-    uint8_t out_increment_map[CASE_QTY] = {
-        [CASE_SNAKE]  = sizeof((char)ASCII_UNDERSCORE),
-        [CASE_CAMEL]  = 0,
-        [CASE_PASCAL] = 0,
-    };
-    char frame_out[MAX_BUFFER_SIZE];    // se usa para armar la cadena de salida
-    *frame_out = *frame->data;      // se copia el comando
+    static void C3_FRAME_PROCESSOR_Transform(frame_t *frame, case_t cmd_case) {
+        WordProcessorCallback CallbackFunc[CASE_QTY] = { // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
+            [CASE_SNAKE]  = C3_FRAME_PROCESSOR_WordLowerInitial,
+            [CASE_CAMEL]  = C3_FRAME_PROCESSOR_WordUpperInitial,
+            [CASE_PASCAL] = C3_FRAME_PROCESSOR_WordUpperInitial,
+        };
+        uint8_t out_increment_map[CASE_QTY] = {
+            [CASE_SNAKE]  = sizeof((char)ASCII_UNDERSCORE),
+            [CASE_CAMEL]  = 0,
+            [CASE_PASCAL] = 0,
+        };
+        char frame_out[MAX_BUFFER_SIZE]; // se usa para armar la cadena de salida
+        *frame_out = *frame->data;  // se copia el comando
 
-    int index_in = CHARACTER_SIZE_CMD;  // índice en cadena de entrada
-    int index_out = CHARACTER_SIZE_CMD; // índice en cadena de salida
-    int qty_words = 0;                  // para chequear la cantidad máxima de palabras
-    int8_t error_flag = 0;              // flag de error para informar a capa 2
-    while (!error_flag) {
-        int8_t character_count = CallbackFunc[cmd_case](&frame->data[index_in], &frame_out[index_out]);
-        index_in += character_count;
-        index_out += character_count;
+        int index_in = CHARACTER_SIZE_CMD; // índice en cadena de entrada
+        int index_out = CHARACTER_SIZE_CMD; // índice en cadena de salida
+        int qty_words = 0;              // para chequear la cantidad máxima de palabras
+        int8_t error_flag = 0;          // flag de error para informar a capa 2
+        while (!error_flag) {
+            int8_t character_count = CallbackFunc[cmd_case](&frame->data[index_in], &frame_out[index_out]);
+            index_in += character_count;
+            index_out += character_count;
 
-        if ((++qty_words > WORD_MAX_QTY) || (character_count == INVALID_FRAME)) {           // Si se pasa la cantidad máxima de palabras se sale
-            error_flag = ERROR_INVALID_DATA;
-            break;
-        }
-        if (frame->data[index_in] == CHARACTER_END_OF_PACKAGE) {        // Condición de salida de un frame correcto
-            if (qty_words < WORD_MIN_QTY) {                                 // Si la cantidad de palabras es menor a la permitida se considera error.
+            if ((++qty_words > WORD_MAX_QTY) || (character_count == INVALID_FRAME)) {       // Si se pasa la cantidad máxima de palabras se sale
                 error_flag = ERROR_INVALID_DATA;
+                break;
             }
-            break;
+            if (frame->data[index_in] == CHARACTER_END_OF_PACKAGE) {    // Condición de salida de un frame correcto
+                if (qty_words < WORD_MIN_QTY) {                             // Si la cantidad de palabras es menor a la permitida se considera error.
+                    error_flag = ERROR_INVALID_DATA;
+                }
+                break;
+            }
+            else if (frame->data[index_in] == ASCII_UNDERSCORE || frame->data[index_in] == ASCII_SPACE) { // Si es snake y viene un '_' o ' ' se pone '_'. Si es camel o Pascal se descarta
+                frame_out[index_out] = TRANSITION_CHAR(cmd_case, frame_out[index_out]);
+                index_out += out_increment_map[cmd_case];
+                index_in++;
+            }
+            else if (CHECK_UPPERCASE(frame->data[index_in])) {
+                frame_out[index_out] = TRANSITION_CHAR(cmd_case, frame_out[index_out]);
+                index_out += out_increment_map[cmd_case];
+            }
+            else {
+                error_flag = ERROR_INVALID_DATA;
+                break;
+            }
         }
-        else if (frame->data[index_in] == ASCII_UNDERSCORE || frame->data[index_in] == ASCII_SPACE) {   // Si es snake y viene un '_' o ' ' se pone '_'. Si es camel o Pascal se descarta
-            frame_out[index_out] = TRANSITION_CHAR(cmd_case, frame_out[index_out]);
-            index_out += out_increment_map[cmd_case];
-            index_in++;
+
+        if (error_flag) {
+            snprintf(frame_out, ERROR_MSG_SIZE + sizeof(CHARACTER_END_OF_PACKAGE), ERROR_MSG_FORMAT, error_flag - 1);
+            index_out = ERROR_MSG_SIZE;
         }
-        else if (CHECK_UPPERCASE(frame->data[index_in])) {
-            frame_out[index_out] = TRANSITION_CHAR(cmd_case, frame_out[index_out]);
-            index_out += out_increment_map[cmd_case];
+        else if (cmd_case == CASE_CAMEL) {
+            frame_out[CHARACTER_SIZE_CMD] = TO_LOWERCASE(frame_out[CHARACTER_SIZE_CMD]);
+        }
+
+        memcpy(frame->data, frame_out, index_out);
+        frame->data[index_out] = CHARACTER_END_OF_PACKAGE;
+        frame->data_size = index_out;
+    }
+
+    static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out) {
+        if (CHECK_UPPERCASE(*word_in)) {
+            *word_out = TO_LOWERCASE(*word_in);
+        }
+        else if (CHECK_LOWERCASE(*word_in)) {
+            *word_out = *word_in;
         }
         else {
-            error_flag = ERROR_INVALID_DATA;
-            break;
+            return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
         }
+
+        int8_t index_in = CHARACTER_SIZE_CMD;
+
+        while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
+            word_out[index_in] = word_in[index_in];
+            index_in++;
+        }
+
+        if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
+            index_in = INVALID_FRAME;
+        }
+
+        return index_in;
     }
 
-    if (error_flag) {
-        snprintf(frame_out, ERROR_MSG_SIZE + sizeof(CHARACTER_END_OF_PACKAGE), ERROR_MSG_FORMAT, error_flag - 1);
-        index_out = ERROR_MSG_SIZE;
-    }
-    else if (cmd_case == CASE_CAMEL) {
-        frame_out[CHARACTER_SIZE_CMD] = TO_LOWERCASE(frame_out[CHARACTER_SIZE_CMD]);
-    }
+    static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out) {
+        if (CHECK_UPPERCASE(*word_in)) {
+            *word_out = *word_in;
+        }
+        else if (CHECK_LOWERCASE(*word_in)) {
+            *word_out = TO_UPPERCASE(*word_in);
+        }
+        else {
+            return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
+        }
 
-    memcpy(frame->data, frame_out, index_out);
-    frame->data[index_out] = CHARACTER_END_OF_PACKAGE;
-    frame->data_size = index_out;
-}
+        int8_t index_in = CHARACTER_SIZE_CMD;
 
-static int8_t C3_FRAME_PROCESSOR_WordLowerInitial(char *word_in, char *word_out) {
-    if (CHECK_UPPERCASE(*word_in)) {
-        *word_out = TO_LOWERCASE(*word_in);
-    }
-    else if (CHECK_LOWERCASE(*word_in)) {
-        *word_out = *word_in;
-    }
-    else {
-        return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
-    }
+        while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
+            word_out[index_in] = word_in[index_in];
+            index_in++;
+        }
 
-    int8_t index_in = CHARACTER_SIZE_CMD;
+        if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
+            index_in = INVALID_FRAME;
+        }
 
-    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
-        word_out[index_in] = word_in[index_in];
-        index_in++;
+        return index_in;
     }
-
-    if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
-        index_in = INVALID_FRAME;
-    }
-
-    return index_in;
-}
-
-static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out) {
-    if (CHECK_UPPERCASE(*word_in)) {
-        *word_out = *word_in;
-    }
-    else if (CHECK_LOWERCASE(*word_in)) {
-        *word_out = TO_UPPERCASE(*word_in);
-    }
-    else {
-        return INVALID_FRAME; // Si la palabra no comienza con mayúscula o minúscula se considera error
-    }
-
-    int8_t index_in = CHARACTER_SIZE_CMD;
-
-    while (CHECK_LOWERCASE(word_in[index_in]) && index_in <= WORD_MAX_SIZE) { // palabra de hasta 10 caracteres
-        word_out[index_in] = word_in[index_in];
-        index_in++;
-    }
-
-    if (index_in > WORD_MAX_SIZE) { // si se cuentan 11 caracteres o más se considera inválido
-        index_in = INVALID_FRAME;
-    }
-
-    return index_in;
-}
 
 /*=====[Implementación de funciones de interrupción]==============================*/
