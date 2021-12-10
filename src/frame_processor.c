@@ -136,7 +136,7 @@ bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app) {
 
     if (my_app->uart < UART_MAXNUM && my_app->uart >= 0) {
         frame_class_t *frame_object = (frame_class_t *)pvPortMalloc(sizeof(frame_class_t));
-        if(frame_object == NULL) {
+        if (frame_object == NULL) {
             return FALSE;
         }
         char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
@@ -256,21 +256,21 @@ static void C3_FRAME_PROCESSOR_ToCamel(void *caller_ao, void *data) {
     frame_t *frame = (frame_t *) data;
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_CAMEL);
-    xQueueSend(me_ao->TransmitQueue, frame, 0);        // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_ToPascal(void *caller_ao, void *data) {
     frame_t *frame = (frame_t *) data;
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_PASCAL);
-    xQueueSend(me_ao->TransmitQueue, frame, 0);        // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_ToSnake(void *caller_ao, void *data) {
     frame_t *frame = (frame_t *) data;
     activeObject_t *me_ao = (activeObject_t *) caller_ao;
     C3_FRAME_PROCESSOR_Transform(frame, CASE_SNAKE);
-    xQueueSend(me_ao->TransmitQueue, frame, 0);        // El AO envía el evento sin importar si el receptor lo puede recibir
+    xQueueSend(me_ao->TransmitQueue, frame, portMAX_DELAY);        // El AO envía el evento sin importar si el receptor lo puede recibir
 }
 
 static void C3_FRAME_PROCESSOR_Transform(frame_t *frame, case_t cmd_case) {
