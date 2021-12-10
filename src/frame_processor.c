@@ -205,8 +205,6 @@ static void C3_FRAME_PROCESSOR_Task_Rx(void *task_parameter) {
     frame_class_t *frame_object = (frame_class_t *) task_parameter;
     QueueHandle_t response_queue = frame_object->buffer_handler.queue_transmit;
 
-    // DEBERIAMOS INICIALIZAR LA TAREA EN C3_FRAME_PROCESSOR_Init --> //C2_FRAME_PACKER_Init(&frame_obj); // Se inicializa el objeto de la instancia
-
     FrameProcessorCallback CallBackAo[CASE_QTY] = {    // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
         [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
         [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,

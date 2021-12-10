@@ -13,6 +13,8 @@
 
 #include "frame_processor.h"
 
+#define ERROR_APP_CREATE    "ERROR: No se pudo instanciar la aplicacion!\n"
+
 /*=====[Implementacion de funciones públicas]=================================*/
 
 int main(void) {
@@ -22,7 +24,7 @@ int main(void) {
         .uart = UART_USB,
     };
     if( !C3_FRAME_PROCESSOR_Init(&usb_app) ) { //Iniciar una instancia de frame_processor en UART_USB
-        printf("ERROR: No se pudo instanciar la aplicacion!\n");
+        printf(ERROR_APP_CREATE);
     }
     // static app_t gpio_app = {
     //     .uart = UART_GPIO,
