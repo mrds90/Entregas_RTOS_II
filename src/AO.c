@@ -79,11 +79,10 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, QueueHa
     BaseType_t retValue = pdFALSE;
 
     // Creamos la cola asociada a este objeto activo.
-    ao->ReceiveQueue = xQueueCreate(N_QUEUE_AO, sizeof(void *));
+    if(ao->ReceiveQueue == NULL) {
+        ao->ReceiveQueue = xQueueCreate(N_QUEUE_AO, sizeof(void *));
+    }
     ao->TransmitQueue = queue;
-
-    // Asignamos la tarea al objeto activo.
-    ao->taskName = activeObjectTask;
 
     // Si la cola se cre� sin inconvenientes.
     if (ao->ReceiveQueue != NULL) {
@@ -91,7 +90,7 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, QueueHa
         ao->callbackFunc = callback;
 
         // Creamos la tarea asociada al objeto activo. A la tarea se le pasar� el objeto activo como par�metro.
-        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 4, ao, tskIDLE_PRIORITY + 1, NULL);
+        retValue = xTaskCreate(activeObjectTask, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 4, ao, tskIDLE_PRIORITY + 1, NULL);
     }
 
     // Chequeamos si la tarea se cre� correctamente o no.
@@ -127,13 +126,13 @@ void activeObjectTask(void *pvParameters) {
     BaseType_t retQueueVal;
 
     // Una variable local para almacenar el dato desde la cola.
-    void *auxValue;
 
     // Obtenemos el puntero al objeto activo.
     activeObject_t *actObj = ( activeObject_t * ) pvParameters;
 
     // Cuando hay un evento, lo procesamos.
     while (TRUE) {
+        void *auxValue;
         // Verifico si hay elementos para procesar en la cola. Si los hay, los proceso.
         if (uxQueueMessagesWaiting(actObj->ReceiveQueue)) {
             // Hago una lectura de la cola.
@@ -155,7 +154,7 @@ void activeObjectTask(void *pvParameters) {
 
             // Borramos la cola del objeto activo.
             vQueueDelete(actObj->ReceiveQueue);
-
+            actObj->ReceiveQueue = NULL;
             // Y finalmente tenemos que eliminar la tarea asociada (suicidio).
             vTaskDelete(NULL);
         }

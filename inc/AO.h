@@ -66,7 +66,6 @@ typedef void ( *callBackActObj_t )(void *caller_ao, void *data);
  *===========================================================================*/
 typedef struct
 {
-    TaskFunction_t taskName;
     QueueHandle_t ReceiveQueue;
     QueueHandle_t TransmitQueue;        // Es una única cola para todos los AO creados que se desencolará en la tarea Tx
     callBackActObj_t callbackFunc;

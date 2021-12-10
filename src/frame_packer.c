@@ -25,9 +25,9 @@
 #define START_OF_MESSAGE_SIZE            1 * sizeof(char)
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 #define CRC_MSG_FORMAT                   "%s%0.2X"
-#define POOL_PACKET_SIZE                    MAX_BUFFER_SIZE
-#define POOL_PACKET_COUNT                   (QUEUE_SIZE)
-#define POOL_SIZE_BYTES                     (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
+#define POOL_PACKET_SIZE                 MAX_BUFFER_SIZE
+#define POOL_PACKET_COUNT                (QUEUE_SIZE)
+#define POOL_SIZE_BYTES                  (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
 /*=====[Definición de tipos de datos privados]================================*/
 typedef struct {
     activeObject_t *activeObject;
@@ -81,7 +81,6 @@ void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
 
 
     QMPool pool;
-    event_t event = EVENT_RECEIVE;
     frame_buffer_handler_t buffer_handler;
     buffer_handler.pool = &pool;
 

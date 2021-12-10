@@ -130,20 +130,21 @@ bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
     static bool_t uart_used[UART_MAXNUM] = {FALSE};
 
     if (uart < UART_MAXNUM && uart >= 0) {
-        frame_class_t *frame_object = (frame_class_t *)pvPortMalloc(sizeof(frame_class_t));
-        if (frame_object == NULL) {
-            return FALSE;
+        if (uart_used[uart] == FALSE) {
+            uart_used[uart] = TRUE;
+
+            activeObject_t *app_object = (activeObject_t *) pvPortMalloc(sizeof(activeObject_t));
+            if (app_object == NULL) {
+                return FALSE;
+            }
+
+            activeObjectOperationCreate(app_object, C3_FRAME_PROCESSOR_Callback, app_object->ReceiveQueue, FALSE);
+
+            ret = C2_FRAME_PACKER_Init(app_object, uart); // Se inicializa el objeto de la instancia
         }
-
-
-        activeObject_t *app_object = (activeObject_t *) pvPortMalloc(sizeof(activeObject_t));
-        if (app_object == NULL) {
-            return FALSE;
+        else {
+            ret = FALSE;
         }
-
-        activeObjectOperationCreate(app_object, C3_FRAME_PROCESSOR_Callback, app_object->ReceiveQueue, FALSE);
-
-        ret = C2_FRAME_PACKER_Init(app_object, uart); // Se inicializa el objeto de la instancia
     }
     return ret;
 }
@@ -156,15 +157,15 @@ static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter) {
 
 
     static FrameProcessorCallback CallBackAo[CASE_QTY] = {            // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
-        [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
+        [CASE_SNAKE]  = C3_FRAME_PROCESSOR_ToSnake,
         [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,
-        [CASE_PASCAL]  = C3_FRAME_PROCESSOR_ToPascal,
+        [CASE_PASCAL] = C3_FRAME_PROCESSOR_ToPascal,
     };
 
     static activeObject_t frame_ao[CASE_QTY] = {
-        [CASE_SNAKE]    = {.itIsAlive = FALSE},
-        [CASE_CAMEL]    = {.itIsAlive = FALSE},
-        [CASE_PASCAL]   = {.itIsAlive = FALSE},
+        [CASE_SNAKE]  = {.itIsAlive = FALSE, .ReceiveQueue = NULL},
+        [CASE_CAMEL]  = {.itIsAlive = FALSE, .ReceiveQueue = NULL},
+        [CASE_PASCAL] = {.itIsAlive = FALSE, .ReceiveQueue = NULL},
     };
 
     // Se utilizará para guardar el paquete proveniente de C2
