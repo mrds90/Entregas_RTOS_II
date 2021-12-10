@@ -125,9 +125,10 @@ void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
 
 void C2_FRAME_PACKER_PrintTask(void *task_parameter) {
     frame_buffer_handler_t *buffer_handler = (frame_buffer_handler_t *) task_parameter;
-    frame_t frame;
+    frame_class_t frame_obj;
 
     while (TRUE) {
+    	frame_t frame;
         xQueueReceive(buffer_handler->queue_transmit, &frame, portMAX_DELAY);
 
         uint8_t crc = crc8_calc(0, frame.data - CHARACTER_SIZE_ID * sizeof(char), PRINT_FRAME_SIZE(frame.data_size) - CHARACTER_SIZE_CRC - 1); // Se calcula el CRC del paquete procesado
@@ -141,10 +142,8 @@ void C2_FRAME_PACKER_PrintTask(void *task_parameter) {
         frame.data[0] = START_OF_MESSAGE;                                                    // Se agraga el SOM
         frame.data_size = PRINT_FRAME_SIZE(frame.data_size) + START_OF_MESSAGE_SIZE; // Se actualiza el tamaño del paquete incluyendo el CRC y el ID
 
-        frame_class_t frame_obj = {
-            .frame = frame,
-            .buffer_handler = *buffer_handler
-        };
+        frame_obj.frame = frame;
+		frame_obj.buffer_handler = *buffer_handler;
 
         C2_FRAME_TRANSMIT_InitTransmision(&frame_obj);                           // Se inicializa la transmisión del paquete procesado por la ISR
     }

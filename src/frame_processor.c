@@ -155,13 +155,13 @@ static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter) {
     frame_t *frame = (frame_t *) parameter;
 
 
-    FrameProcessorCallback CallBackAo[CASE_QTY] = {            // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
+    static FrameProcessorCallback CallBackAo[CASE_QTY] = {            // Se cargan los callback para transformar la primera letra de cada palabra segun el caso
         [CASE_SNAKE] = C3_FRAME_PROCESSOR_ToSnake,
         [CASE_CAMEL]  = C3_FRAME_PROCESSOR_ToCamel,
         [CASE_PASCAL]  = C3_FRAME_PROCESSOR_ToPascal,
     };
 
-    activeObject_t frame_ao[CASE_QTY] = {
+    static activeObject_t frame_ao[CASE_QTY] = {
         [CASE_SNAKE]    = {.itIsAlive = FALSE},
         [CASE_CAMEL]    = {.itIsAlive = FALSE},
         [CASE_PASCAL]   = {.itIsAlive = FALSE},
@@ -200,7 +200,7 @@ static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter) {
         }
     }
     else if (frame->event == EVENT_TRANSMIT) {
-        xQueueSend(frame->send_queue, &frame, portMAX_DELAY);
+        xQueueSend(frame->send_queue, frame, portMAX_DELAY);
     }
 }
 
