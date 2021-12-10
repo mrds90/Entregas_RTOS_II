@@ -20,10 +20,8 @@
 int main(void) {
     boardConfig();
 
-    static app_t usb_app = {
-        .uart = UART_USB,
-    };
-    if( !C3_FRAME_PROCESSOR_Init(&usb_app) ) { //Iniciar una instancia de frame_processor en UART_USB
+    
+    if( !C3_FRAME_PROCESSOR_Init(UART_USB) ) { //Iniciar una instancia de frame_processor en UART_USB
         printf(ERROR_APP_CREATE);
     }
     // static app_t gpio_app = {

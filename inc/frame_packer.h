@@ -13,6 +13,7 @@
 /*=====[Inclusión de dependencias de funciones públicas]=====================*/
 
 #include "frame_class.h"
+#include "AO.h"
 
 /*=====[C++ - comienzo]======================================================*/
 
@@ -28,16 +29,9 @@ extern "C" {
  * @brief Encola en el buffer_handler un puntero a los datos inicializados de la instancia.
  *
   */
-C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart);
+bool_t C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart);
 
-/**
- * @brief Función que recibe y procesa los datos recibidos desde C3, le inserta el ID y CRC para ser impresos/enviados por la función de callback de
- * la ISR de Tx.
- *
- * @param frame_obj Estructura del tipo frame_class_t.
- */
 
-void C2_FRAME_PACKER_Print(frame_class_t *frame_obj);
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 

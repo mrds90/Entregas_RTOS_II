@@ -33,7 +33,7 @@ typedef struct {
  * @param uart puerto de comunicación UART pasado desde int main para inicializar
  * la instancia
  */
-bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app);
+bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) ;
 
 /*=====[Declaración de prototipos de funciones publicas de interrupción]====*/
 

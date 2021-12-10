@@ -10,7 +10,6 @@
 #include "task.h"
 
 #include "frame_packer.h"
-#include "AO.h"
 #include "frame_capture.h"
 #include "frame_transmit.h"
 
@@ -26,6 +25,9 @@
 #define START_OF_MESSAGE_SIZE            1 * sizeof(char)
 #define PRINT_FRAME_SIZE(size)           ((size) + (CHARACTER_INDEX_DATA + CHARACTER_SIZE_CRC) * sizeof(uint8_t))
 #define CRC_MSG_FORMAT                   "%s%0.2X"
+#define POOL_PACKET_SIZE                    MAX_BUFFER_SIZE
+#define POOL_PACKET_COUNT                   (QUEUE_SIZE)
+#define POOL_SIZE_BYTES                     (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
 /*=====[Definición de tipos de datos privados]================================*/
 typedef struct {
     activeObject_t *activeObject;
@@ -39,13 +41,24 @@ typedef struct {
  * @param buffer_handler Buffer que contiene el contexto (cola y puntero a pool)
  */
 static void C2_FRAME_PACKER_ReceiveTask(void *task_parameter);
+/**
+ * @brief Función que recibe y procesa los datos recibidos desde C3, le inserta el ID y CRC para ser impresos/enviados por la función de callback de
+ * la ISR de Tx.
+ *
+ * @param frame_obj Estructura del tipo frame_class_t.
+ */
 
+static void C2_FRAME_PACKER_PrintTask(void *task_parameter);
 /*=====[Declaración de prototipos de funciones privadas]======================*/
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-void C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart, cosa_completa) {
+bool_t C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart) {
+    bool_t no_error = TRUE;
     frame_packer_t *frame_packer = pvPortMalloc(sizeof(frame_packer_t));
+    if (frame_packer == NULL) {
+        no_error = FALSE;
+    }
     frame_packer->activeObject = ao_obj;
     frame_packer->uart = uart;
     BaseType_t res = xTaskCreate(
@@ -56,6 +69,10 @@ void C2_FRAME_PACKER_Init(activeObject_t *ao_obj, uartMap_t uart, cosa_completa)
         tskIDLE_PRIORITY + 1,
         NULL
         );
+    if (res != pdPASS) {
+        no_error = FALSE;
+    }
+    return no_error;
 }
 
 void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
@@ -73,12 +90,10 @@ void C2_FRAME_PACKER_ReceiveTask(void *task_parameter) {
     vPortFree(frame_packer);
 
     char *memory_pool = (char *)pvPortMalloc(POOL_SIZE_BYTES);
-    if (memory_pool == NULL) {
-        return FALSE;
-    }
+    configASSERT(memory_pool != NULL);
     QMPool_init(buffer_handler.pool, (char *) memory_pool, POOL_SIZE_BYTES * sizeof(char), POOL_PACKET_SIZE);
 
-    C2_FRAME_TRANSMIT_ObjInit(buffer_handler);     // Se envía para asignación de semáforo de buffer_handler de transmisión
+    C2_FRAME_TRANSMIT_ObjInit(&buffer_handler);     // Se envía para asignación de semáforo de buffer_handler de transmisión
 
     QueueHandle_t queue_receive = C2_FRAME_CAPTURE_ObjInit(buffer_handler.pool,  buffer_handler.uart)->queue_receive;
     buffer_handler.queue_transmit = xQueueCreate(QUEUE_SIZE, sizeof(frame_t));
@@ -131,7 +146,7 @@ void C2_FRAME_PACKER_PrintTask(void *task_parameter) {
             .buffer_handler = *buffer_handler
         };
 
-        C2_FRAME_TRANSMIT_InitTransmision(frame_obj);                           // Se inicializa la transmisión del paquete procesado por la ISR
+        C2_FRAME_TRANSMIT_InitTransmision(&frame_obj);                           // Se inicializa la transmisión del paquete procesado por la ISR
     }
 }
 

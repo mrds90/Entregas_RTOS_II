@@ -26,9 +26,6 @@ typedef enum {
 } error_t;
 
 #define ERROR_MSG_SIZE                      3
-#define POOL_PACKET_SIZE                    MAX_BUFFER_SIZE
-#define POOL_PACKET_COUNT                   (QUEUE_SIZE)
-#define POOL_SIZE_BYTES                     (POOL_PACKET_SIZE * POOL_PACKET_COUNT * sizeof(char))
 #define CHECK_LOWERCASE(x)                  ((x >= 'a' && x <= 'z') ? TRUE : FALSE)
 #define CHECK_UPPERCASE(x)                  ((x >= 'A' && x <= 'Z') ? TRUE : FALSE)
 #define CHECK_OPCODE(x)                     ((x == 'S' || x == 'C' || x == 'P') ? ERROR_NONE : ERROR_INVALID_OPCODE)
@@ -71,7 +68,7 @@ static const char *const task_name_map[CASE_QTY] = {
 
 
 /*=====[Declaración de prototipos de funciones privadas]======================*/
-static void C3_FRAME_PROCESSOR_Callback(void *taskParmPtr);
+static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter);
 
 /**
  * @brief función para procesar el frame según el comando que recibe.
@@ -128,8 +125,8 @@ static int8_t C3_FRAME_PROCESSOR_WordUpperInitial(char *word_in, char *word_out)
 
 /*=====[Implementación de funciones públicas]=================================*/
 
-bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart , cosa_completa) {
-    bool_t ret = FALSE;
+bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart) {
+    bool_t ret = TRUE;
     static bool_t uart_used[UART_MAXNUM] = {FALSE};
 
     if (uart < UART_MAXNUM && uart >= 0) {
@@ -146,7 +143,7 @@ bool_t C3_FRAME_PROCESSOR_Init(uartMap_t uart , cosa_completa) {
 
         activeObjectOperationCreate(app_object, C3_FRAME_PROCESSOR_Callback, app_object->ReceiveQueue, FALSE);
 
-        C2_FRAME_PACKER_Init(app_object, uart); // Se inicializa el objeto de la instancia
+        ret = C2_FRAME_PACKER_Init(app_object, uart); // Se inicializa el objeto de la instancia
     }
     return ret;
 }
@@ -175,7 +172,7 @@ static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter) {
         case_t command = CASE_PASCAL;
 
         // Se obtiene el evento
-        while (command_map[command] != *frame.data && command < CASE_QTY) {     // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
+        while (command_map[command] != *frame->data && command < CASE_QTY) {     // Se obtiene el comando mapeado a número de la primera posición del paquete que arribó de C2
             command++;
         }
 
@@ -183,7 +180,7 @@ static void C3_FRAME_PROCESSOR_Callback(void *caller_ao, void *parameter) {
         if (command < CASE_QTY) {
             vTaskSuspendAll();
             if (frame_ao[command].itIsAlive == FALSE) {
-                if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], caller_object->ReceiveQueue)) {     // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
+                if (!activeObjectOperationCreate(&frame_ao[command], CallBackAo[command], caller_object->ReceiveQueue, TRUE)) {     // Se crea el objeto activo, con el comando correspondiente y tarea asociada.
                     snprintf(frame->data, ERROR_MSG_SIZE + (sizeof((char)CHARACTER_END_OF_PACKAGE)), ERROR_MSG_FORMAT, ERROR_SYSTEM - 1);
                     frame->data_size = ERROR_MSG_SIZE;
                     frame->event = EVENT_TRANSMIT;

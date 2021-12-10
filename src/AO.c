@@ -56,7 +56,7 @@ static void activeObjectTask(void *pvParameters);
  *
  *===========================================================================*/
 
-static bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
+static bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t queue);
 
 /*=====[Implementations of public functions]=================================*/
 
@@ -74,12 +74,13 @@ static bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback);
  *
  *===========================================================================*/
 
-bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback) {
+bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t queue) {
     // Una variable local para saber si hemos creado correctamente los objetos.
     BaseType_t retValue = pdFALSE;
 
     // Creamos la cola asociada a este objeto activo.
     ao->ReceiveQueue = xQueueCreate(N_QUEUE_AO, sizeof(void *));
+    ao->TransmitQueue = queue;
 
     // Asignamos la tarea al objeto activo.
     ao->taskName = activeObjectTask;
@@ -90,7 +91,7 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback) {
         ao->callbackFunc = callback;
 
         // Creamos la tarea asociada al objeto activo. A la tarea se le pasar� el objeto activo como par�metro.
-        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 4, ao, tskIDLE_PRIORITY + 2, NULL);
+        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 4, ao, tskIDLE_PRIORITY + 1, NULL);
     }
 
     // Chequeamos si la tarea se cre� correctamente o no.
@@ -185,8 +186,7 @@ void activeObjectEnqueue(activeObject_t *ao, void *value) {
 
 bool_t activeObjectOperationCreate(activeObject_t *ao, callBackActObj_t callback, QueueHandle_t response_queue, bool_t is_destroyable) {
     /* cargo miembro que no estaba */
-    ao->TransmitQueue = response_queue;
     ao->isDestructible = is_destroyable;
     /* creo oa padre */
-    return (activeObjectCreate(ao, callback);
+    return (activeObjectCreate(ao, callback, response_queue));
 }

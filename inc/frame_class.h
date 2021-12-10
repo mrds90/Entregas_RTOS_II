@@ -70,6 +70,7 @@ typedef struct {
     QueueHandle_t queue_receive;
     QueueHandle_t queue_transmit;
     SemaphoreHandle_t semaphore;
+    uartMap_t uart;
 } frame_buffer_handler_t;
 
 /**
