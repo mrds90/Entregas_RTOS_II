@@ -62,16 +62,16 @@ extern int DbgConsole_Printf( const char *fmt_s, ... );
 #define configMINIMAL_STACK_SIZE                     ( ( uint16_t ) 90 )
 #define configTOTAL_HEAP_SIZE                        ( ( size_t ) ( 28 * 1024 ) )    /* 20 Kbytes. */
 #define configMAX_TASK_NAME_LEN                      ( 16 )
-#define configUSE_TRACE_FACILITY                     1
+#define configUSE_TRACE_FACILITY                     0//1
 #define configUSE_16_BIT_TICKS                       0
 #define configIDLE_SHOULD_YIELD                      1
-#define configUSE_MUTEXES                            1
+#define configUSE_MUTEXES                            0//1
 #define configQUEUE_REGISTRY_SIZE                    8
 #define configCHECK_FOR_STACK_OVERFLOW               2
-#define configUSE_RECURSIVE_MUTEXES                  1
+#define configUSE_RECURSIVE_MUTEXES                  0//1
 #define configUSE_MALLOC_FAILED_HOOK                 1
 #define configUSE_APPLICATION_TASK_TAG               0
-#define configUSE_COUNTING_SEMAPHORES                1
+#define configUSE_COUNTING_SEMAPHORES                0//1
 #define configGENERATE_RUN_TIME_STATS                0
 #define configOVERRIDE_DEFAULT_TICK_CONFIGURATION    1
 #define configRECORD_STACK_HIGH_ADDRESS              1
@@ -91,16 +91,16 @@ extern int DbgConsole_Printf( const char *fmt_s, ... );
 
 /* Set the following definitions to 1 to include the API function, or zero
  * to exclude the API function. */
-#define INCLUDE_vTaskPrioritySet                     1
-#define INCLUDE_uxTaskPriorityGet                    1
+#define INCLUDE_vTaskPrioritySet                     0//1
+#define INCLUDE_uxTaskPriorityGet                    0//1
 #define INCLUDE_vTaskDelete                          1
 #define INCLUDE_vTaskCleanUpResources                0
 #define INCLUDE_vTaskSuspend                         0
 #define INCLUDE_vTaskDelayUntil                      0
 #define INCLUDE_vTaskDelay                           0
-#define INCLUDE_xTaskGetSchedulerState               1
-#define INCLUDE_xTimerPendFunctionCall               1
-#define INCLUDE_xSemaphoreGetMutexHolder             1
+#define INCLUDE_xTaskGetSchedulerState               0//1
+#define INCLUDE_xTimerPendFunctionCall               0//1
+#define INCLUDE_xSemaphoreGetMutexHolder             0//1
 
 /* Cortex-M specific definitions. */
 #ifdef __NVIC_PRIO_BITS

@@ -28,7 +28,7 @@ extern "C" {
 #define CHARACTER_SIZE_CRC          2
 #define CHARACTER_SIZE_CMD          1
 #define CHARACTER_SIZE_SOM          1
-#define QUEUE_SIZE                  10
+#define QUEUE_SIZE                  12
 #define START_OF_MESSAGE            '('
 #define END_OF_MESSAGE              ')'
 #define CHARACTER_END_OF_PACKAGE    '\0'
