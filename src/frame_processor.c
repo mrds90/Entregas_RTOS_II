@@ -164,7 +164,7 @@ bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app) {
             BaseType_t xReturned = xTaskCreate(
                 C3_FRAME_PROCESSOR_Task_Rx,
                 (const char *)"Main Processor Rx",
-                configMINIMAL_STACK_SIZE * 3,
+                configMINIMAL_STACK_SIZE * 12,
                 (void *) frame_object,
                 tskIDLE_PRIORITY + 1,
                 NULL
@@ -177,7 +177,7 @@ bool_t C3_FRAME_PROCESSOR_Init(app_t *my_app) {
         BaseType_t xReturned = xTaskCreate(
             C3_FRAME_PROCESSOR_Task_Tx,
             (const char *)"Main Processor Tx",
-            configMINIMAL_STACK_SIZE * 3,
+            configMINIMAL_STACK_SIZE * 12,
             (void *) frame_object,
             tskIDLE_PRIORITY + 1,
             NULL

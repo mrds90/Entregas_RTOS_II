@@ -71,7 +71,7 @@ bool_t activeObjectCreate(activeObject_t *ao, callBackActObj_t callback) {
         ao->callbackFunc = callback;
 
         // Creamos la tarea asociada al objeto activo. A la tarea se le pasar� el objeto activo como par�metro.
-        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 4, ao, tskIDLE_PRIORITY + 2, NULL);
+        retValue = xTaskCreate(ao->taskName, ( const char * )"Task For AO", configMINIMAL_STACK_SIZE * 12, ao, tskIDLE_PRIORITY + 1, NULL);
     }
 
     // Chequeamos si la tarea se cre� correctamente o no.

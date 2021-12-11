@@ -18,7 +18,7 @@
 #include "semphr.h"
 #include "sapi.h"
 
-#define N_QUEUE_AO      10
+#define N_QUEUE_AO      15
 
 /*=====[C++ - begin]=========================================================*/
 

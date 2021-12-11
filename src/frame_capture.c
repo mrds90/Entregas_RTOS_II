@@ -55,7 +55,7 @@ typedef struct {
     uartMap_t uart;
     frame_capture_state_t state;
     bool_t frame_active;
-    uint8_t buff_ind;
+    uint16_t buff_ind;
     uint8_t crc;
 } frame_capture_t;
 
@@ -102,7 +102,7 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
  * @param ascii Recibe el puntero a la posición del primer caracter del ascii
  * @param n     Cantidad de valores a ser convertidos
  */
-__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t n);
+__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint16_t n);
 
 /**
  * @brief Función de callback de timer. Devuelve el bloque de pool, desactiva la captura y queda en estado IDLE.
@@ -161,7 +161,7 @@ __STATIC_FORCEINLINE bool_t C2_FRAME_CAPTURE_CheckCRC(frame_t frame, uint8_t crc
     return ret;
 }
 
-__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint8_t digit_qty) {
+__STATIC_FORCEINLINE uint8_t C2_FRAME_CAPTURE_AsciiHexaToInt(char *ascii, uint16_t digit_qty) {
     uint8_t ret = 0, hex_digit = 0;
 
     for (uint8_t nibble = 0; nibble < digit_qty; nibble++) {
